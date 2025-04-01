@@ -236,6 +236,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { emailAddress, emailPassword, imapHost, imapPort, emailLabel } = req.body;
       
+      console.log('Configuring email with:', {
+        emailAddress,
+        imapHost: imapHost || 'imap.gmail.com',
+        imapPort: imapPort || 993,
+        emailLabel: emailLabel || 'taskflow',
+        passwordProvided: !!emailPassword
+      });
+      
       // Validate required fields
       if (!emailAddress || !emailPassword) {
         return res.status(400).json({
@@ -243,19 +251,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Configure the email service
-      emailService.configure({
+      // Configure the email service and test connection
+      const success = await emailService.configure({
         emailAddress,
         emailPassword,
         imapHost: imapHost || 'imap.gmail.com',
         imapPort: imapPort || 993,
-        emailLabel: emailLabel || 'taskflow'
+        emailLabel: emailLabel || 'INBOX'
       });
+      
+      console.log('Email service configuration result:', {
+        success,
+        isConfigured: emailService.isServiceConfigured()
+      });
+      
+      if (!success) {
+        return res.status(400).json({
+          message: "Email configuration failed. Could not establish IMAP connection. Please check your credentials and settings."
+        });
+      }
       
       res.json({
         success: true,
-        message: "Email configuration saved",
-        config: emailService.getConfig() // Returns config with password masked
+        message: "Email configuration saved and connection tested successfully",
+        config: emailService.getConfig(), // Returns config with password masked
+        isConfigured: emailService.isServiceConfigured()
       });
     } catch (error) {
       console.error('Error configuring email service:', error);
@@ -269,14 +289,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.post("/email/check", async (req: Request, res: Response) => {
     try {
       // Check if email service is configured
+      console.log('Check emails requested. Is email service configured?', emailService.isServiceConfigured());
+      console.log('Current email configuration:', emailService.getConfig());
+      
       if (!emailService.isServiceConfigured()) {
+        console.log('Email service not configured, returning 400');
         return res.status(400).json({ 
           message: "Email service not configured. Please configure email settings first." 
         });
       }
 
+      console.log('Email service configured, proceeding to check emails...');
+      
       // Process emails and create/update tasks
       const result = await emailService.processEmails();
+      console.log('Email processing results:', result);
       
       res.json({ 
         success: true, 

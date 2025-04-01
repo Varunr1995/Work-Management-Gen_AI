@@ -38,7 +38,7 @@ export const EmailIntegration = () => {
     emailPassword: "",
     imapHost: "imap.gmail.com",
     imapPort: 993,
-    emailLabel: "taskflow"
+    emailLabel: "INBOX"
   });
 
   const handleConfigChange = (field: keyof EmailConfigType, value: string | number) => {
@@ -297,7 +297,7 @@ export const EmailIntegration = () => {
                 <Label htmlFor="label">Email Label/Folder</Label>
                 <Input 
                   id="label" 
-                  placeholder="taskflow"
+                  placeholder="INBOX"
                   value={emailConfig.emailLabel}
                   onChange={(e) => handleConfigChange('emailLabel', e.target.value)}
                 />

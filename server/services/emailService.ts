@@ -44,64 +44,159 @@ export class EmailService {
 
   constructor() {
     // Try to load from environment variables first (legacy support)
-    if (process.env.EMAIL_ADDRESS && process.env.GMAIL_APP_PASSWORD) {
+    const emailPassword = process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASSWORD;
+    if (process.env.EMAIL_ADDRESS && emailPassword) {
+      console.log('Loading email configuration from environment variables');
       this.config = {
         emailAddress: process.env.EMAIL_ADDRESS,
-        emailPassword: process.env.GMAIL_APP_PASSWORD,
+        emailPassword: emailPassword,
         imapHost: process.env.IMAP_HOST || 'imap.gmail.com',
         imapPort: process.env.IMAP_PORT ? parseInt(process.env.IMAP_PORT) : 993,
-        emailLabel: process.env.EMAIL_LABEL || 'taskflow'
+        emailLabel: process.env.EMAIL_LABEL || 'INBOX'
       };
       this.isConfigured = true;
       this.initializeImap();
+      console.log('Email service configured from environment variables');
     }
   }
 
   /**
    * Configure the email service with user-provided settings
+   * @returns Promise that resolves to true if connection test was successful
    */
-  configure(config: EmailConfig): void {
+  async configure(config: EmailConfig): Promise<boolean> {
     this.config = config;
     this.isConfigured = true;
     this.initializeImap();
+    
+    // Test the connection
+    try {
+      console.log('Testing IMAP connection...');
+      
+      // Create a new IMAP instance for testing
+      const testImap = new Imap({
+        user: config.emailAddress,
+        password: config.emailPassword,
+        host: config.imapHost,
+        port: config.imapPort,
+        tls: true,
+        tlsOptions: { rejectUnauthorized: false },
+        connTimeout: 10000 // 10 second connection timeout for testing
+      });
+      
+      // Test the connection by connecting
+      await new Promise<void>((resolve, reject) => {
+        testImap.once('ready', () => {
+          console.log('Test IMAP connection successful');
+          testImap.end();
+          resolve();
+        });
+        
+        testImap.once('error', (err) => {
+          console.error('Test IMAP connection failed:', err);
+          reject(err);
+        });
+        
+        testImap.connect();
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Email configuration test failed:', error);
+      this.isConfigured = false;
+      return false;
+    }
   }
 
   /**
    * Check if the service is configured
    */
   isServiceConfigured(): boolean {
-    return this.isConfigured && this.config !== null;
+    const result = this.isConfigured && this.config !== null;
+    console.log('isServiceConfigured called:', { 
+      result,
+      isConfigured: this.isConfigured,
+      hasConfig: this.config !== null,
+      configDetails: this.config ? {
+        emailAddress: this.config.emailAddress,
+        hasPassword: !!this.config.emailPassword,
+        label: this.config.emailLabel
+      } : 'No config'
+    });
+    return result;
   }
 
   /**
    * Initialize IMAP connection with current config
    */
   private initializeImap(): void {
-    if (!this.config) return;
+    if (!this.config) {
+      console.log('Cannot initialize IMAP: No configuration available');
+      return;
+    }
     
-    this.imap = new Imap({
+    console.log('Initializing IMAP connection with:', {
       user: this.config.emailAddress,
-      password: this.config.emailPassword,
       host: this.config.imapHost,
       port: this.config.imapPort,
-      tls: true,
-      tlsOptions: { rejectUnauthorized: false }
+      hasPassword: !!this.config.emailPassword
     });
+    
+    try {
+      this.imap = new Imap({
+        user: this.config.emailAddress,
+        password: this.config.emailPassword,
+        host: this.config.imapHost,
+        port: this.config.imapPort,
+        tls: true,
+        tlsOptions: { rejectUnauthorized: false }
+      });
+      
+      // Add event listeners for debugging
+      this.imap.on('error', (err: any) => {
+        console.error('IMAP connection error:', err);
+        // If there's a persistent connection error, mark as not configured
+        if (err.source === 'timeout' || err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
+          console.error('Critical IMAP error, marking service as not configured');
+          this.isConfigured = false;
+        }
+      });
+      
+      this.imap.on('end', () => {
+        console.log('IMAP connection ended');
+      });
+      
+      this.imap.on('ready', () => {
+        console.log('IMAP connection ready');
+      });
+      
+      console.log('IMAP connection object created successfully');
+    } catch (error) {
+      console.error('Error creating IMAP connection:', error);
+      this.isConfigured = false;
+    }
   }
 
   /**
    * Fetch unread emails from the configured account
    */
   async fetchUnreadEmails(): Promise<ParsedMail[]> {
+    console.log('Attempting to fetch unread emails');
+    
     if (!this.isServiceConfigured() || !this.imap) {
+      console.error('Cannot fetch emails: Email service not configured or IMAP client missing');
       throw new Error('Email service not configured. Please configure the service first.');
     }
 
     return new Promise((resolve, reject) => {
       const emails: ParsedMail[] = [];
       const processedUIDs: number[] = [];
+      
+      console.log('Setting up IMAP connection for email fetch');
     
       this.imap!.once('ready', () => {
+        console.log('IMAP connection ready, opening mailbox:', this.config!.emailLabel);
+        
         this.imap!.openBox(this.config!.emailLabel, false, (err, box) => {
           if (err) {
             console.error('Error opening mailbox:', err);
@@ -109,7 +204,10 @@ export class EmailService {
             return reject(err);
           }
           
+          console.log('Mailbox opened successfully:', box?.name);
+          
           // Search for unread messages
+          console.log('Searching for unread messages');
           this.imap!.search(['UNSEEN'], (err, results) => {
             if (err) {
               console.error('Error searching emails:', err);
@@ -117,25 +215,31 @@ export class EmailService {
               return reject(err);
             }
             
+            console.log(`Found ${results.length} unread messages`);
+            
             if (results.length === 0) {
               this.imap!.end();
               return resolve([]);
             }
             
+            console.log('Fetching message bodies');
             const f = this.imap!.fetch(results, { 
               bodies: '',
               markSeen: true 
             });
             
             f.on('message', (msg, seqno) => {
+              console.log(`Processing message #${seqno}`);
               let uid: number;
               
               msg.once('attributes', (attrs) => {
                 uid = attrs.uid;
                 processedUIDs.push(uid);
+                console.log(`Message UID: ${uid}`);
               });
               
               msg.on('body', (stream, info) => {
+                console.log('Receiving message body');
                 let buffer = '';
                 
                 stream.on('data', (chunk) => {
@@ -144,7 +248,9 @@ export class EmailService {
                 
                 stream.once('end', async () => {
                   try {
+                    console.log(`Parsing email body of length ${buffer.length}`);
                     const parsedEmail = await simpleParser(buffer);
+                    console.log(`Successfully parsed email: "${parsedEmail.subject}"`);
                     emails.push(parsedEmail);
                   } catch (error) {
                     console.error('Error parsing email:', error);
@@ -159,7 +265,9 @@ export class EmailService {
             });
             
             f.once('end', () => {
+              console.log('Finished fetching all messages');
               this.imap!.end();
+              console.log(`Successfully fetched ${emails.length} emails`);
               resolve(emails);
             });
           });
@@ -167,10 +275,11 @@ export class EmailService {
       });
       
       this.imap!.once('error', (err) => {
-        console.error('IMAP error:', err);
+        console.error('IMAP error during fetch:', err);
         reject(err);
       });
       
+      console.log('Initiating IMAP connection');
       this.imap!.connect();
     });
   }
@@ -185,6 +294,8 @@ export class EmailService {
       const subject = email.subject || 'No Subject';
       const messageId = email.messageId || '';
 
+      console.log(`Attempting to parse email: "${subject}"`);
+
       // Parse the email body for task details
       const parsedData: ParsedEmailData = {
         subject,
@@ -193,6 +304,8 @@ export class EmailService {
         messageId
       };
 
+      // Try to extract information from formatted tags first
+      
       // Extract team information
       const teamMatch = emailBody.match(/Team:\s*([^\n]+)/i);
       if (teamMatch && teamMatch[1]) {
@@ -206,7 +319,10 @@ export class EmailService {
       }
 
       // Extract deadline
-      const deadlineMatch = emailBody.match(/Deadline:\s*([^\n]+)/i);
+      const deadlineMatch = emailBody.match(/Deadline:\s*([^\n]+)/i) || 
+                            emailBody.match(/Due(?: Date)?:\s*([^\n]+)/i) ||
+                            emailBody.match(/by:?\s*([^\n,:;]+)/i);
+                            
       if (deadlineMatch && deadlineMatch[1]) {
         const deadlineStr = deadlineMatch[1].trim();
         const deadlineDate = new Date(deadlineStr);
@@ -214,16 +330,55 @@ export class EmailService {
         // Check if the date is valid
         if (!isNaN(deadlineDate.getTime())) {
           parsedData.deadline = deadlineDate;
+          console.log(`Found deadline: ${deadlineDate}`);
         }
       }
 
       // Extract priority
-      const priorityMatch = emailBody.match(/Priority:\s*(high|medium|low)/i);
-      if (priorityMatch && priorityMatch[1]) {
-        parsedData.priority = priorityMatch[1].toLowerCase();
+      const priorityMatch = emailBody.match(/Priority:\s*(high|medium|low)/i) ||
+                            emailBody.match(/\b(high|medium|low) priority\b/i) ||
+                            emailBody.match(/\b(urgent|important)\b/i);
+                            
+      if (priorityMatch) {
+        let priority = priorityMatch[1].toLowerCase();
+        
+        // Map 'urgent' and 'important' to high priority
+        if (priority === 'urgent' || priority === 'important') {
+          priority = 'high';
+        }
+        
+        parsedData.priority = priority;
+        console.log(`Found priority: ${priority}`);
       }
 
-      return parsedData;
+      // If the subject line contains certain keywords, auto-assign higher priority
+      const urgentSubject = /(urgent|asap|immediately|deadline|due|important)/i.test(subject);
+      if (urgentSubject && !parsedData.priority) {
+        parsedData.priority = 'high';
+        console.log('Subject indicates high priority');
+      }
+
+      // For short emails or emails from specific domains, they're more likely to be task requests
+      const isLikelyTask = subject.length < 150 && 
+                          (emailBody.length < 1000 || 
+                          /action|task|follow up|update|review|check|complete/i.test(subject));
+                          
+      if (isLikelyTask) {
+        console.log(`Email "${subject}" looks like a task`);
+        return parsedData;
+      } else if (parsedData.priority === 'high' || parsedData.deadline) {
+        // If we found priority or deadline information, it's likely a task
+        console.log(`Email has task-like attributes (priority/deadline)`);
+        return parsedData;
+      } else if (/\b(task|todo|action item|follow up|please|update|review|complete)\b/i.test(emailBody.substring(0, 500))) {
+        // Check if the beginning of the email has task-like wording
+        console.log(`Email contains task-like language in the beginning`);
+        return parsedData;
+      }
+      
+      // If we couldn't determine if this is a task, return null
+      console.log(`Email doesn't appear to be a task request: ${subject}`);
+      return null;
     } catch (error) {
       console.error('Error parsing email:', error);
       return null;
