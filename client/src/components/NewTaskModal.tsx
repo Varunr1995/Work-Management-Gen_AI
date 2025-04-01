@@ -53,7 +53,8 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
       workspaceId: workspaceId,
       dueDate: undefined,
       startDate: undefined,
-      completed: false
+      completed: false,
+      position: 0
     }
   });
 
@@ -69,7 +70,8 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
         workspaceId: editTask.workspaceId,
         dueDate: editTask.dueDate,
         startDate: editTask.startDate,
-        completed: editTask.completed
+        completed: editTask.completed,
+        position: editTask.position || 0
       });
     } else if (defaultStatus) {
       form.reset({
@@ -81,7 +83,8 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
         workspaceId: workspaceId,
         dueDate: undefined,
         startDate: undefined,
-        completed: false
+        completed: false,
+        position: 0
       });
     } else {
       form.reset();
@@ -173,7 +176,11 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Describe the task..." {...field} />
+                    <Textarea 
+                      placeholder="Describe the task..." 
+                      {...field}
+                      value={field.value || ''}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

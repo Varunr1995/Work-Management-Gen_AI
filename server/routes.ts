@@ -60,16 +60,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   apiRouter.post("/tasks", async (req: Request, res: Response) => {
     try {
+      console.log("Creating task with data:", JSON.stringify(req.body));
       const taskData = insertTaskSchema.parse(req.body);
       const task = await storage.createTask(taskData);
       res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Validation error:", JSON.stringify(error.errors));
         return res.status(400).json({ 
           message: "Invalid task data", 
           errors: error.errors 
         });
       }
+      console.error("Error creating task:", error);
       res.status(500).json({ message: "Failed to create task" });
     }
   });
