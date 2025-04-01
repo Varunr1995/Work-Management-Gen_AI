@@ -70,6 +70,28 @@ const getPriorityLabel = (priority: string) => {
   }
 };
 
+const getTaskTypeLabel = (taskType: string) => {
+  switch (taskType) {
+    case 'adhoc':
+      return 'Ad-hoc';
+    case 'sprint':
+      return 'Sprint';
+    default:
+      return taskType || 'Ad-hoc';
+  }
+};
+
+const getTaskTypeBadgeVariant = (taskType: string) => {
+  switch (taskType) {
+    case 'adhoc':
+      return 'bg-orange-100 text-orange-800';
+    case 'sprint':
+      return 'bg-indigo-100 text-indigo-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
 const ListView: FC<ListViewProps> = ({ 
   tasks, 
   users, 
@@ -97,6 +119,7 @@ const ListView: FC<ListViewProps> = ({
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Priority</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Task Type</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Assignee</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Due Date</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
@@ -145,6 +168,11 @@ const ListView: FC<ListViewProps> = ({
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getTaskTypeBadgeVariant(task.taskType || 'adhoc')}`}>
+                      {getTaskTypeLabel(task.taskType || 'adhoc')}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     {assignee ? (
                       <div className="flex items-center">
                         <img 
@@ -188,7 +216,7 @@ const ListView: FC<ListViewProps> = ({
             })}
             {(!Array.isArray(tasks) || tasks.length === 0) && (
               <tr>
-                <td colSpan={6} className="px-6 py-4 text-center text-sm text-slate-500">
+                <td colSpan={7} className="px-6 py-4 text-center text-sm text-slate-500">
                   No tasks found
                 </td>
               </tr>

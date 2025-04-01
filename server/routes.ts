@@ -76,6 +76,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const task = await storage.createTask(validatedData);
       console.log("Created task:", JSON.stringify(task));
       
+      // Create a notification for the new task
+      const notification = {
+        title: "New Task Created",
+        message: `Task "${task.title}" has been created${task.taskType ? ` with type: ${task.taskType}` : ''}${task.priority ? ` | Priority: ${task.priority}` : ''}${task.dueDate ? ` | Due: ${new Date(task.dueDate).toLocaleDateString()}` : ''}`,
+        taskId: task.id,
+        userId: 1, // Admin user (change to assigneeId if assignee exists)
+        type: "task_created",
+        isRead: false,
+        createdAt: new Date()
+      };
+      
+      try {
+        const createdNotification = await storage.createNotification(notification);
+        console.log("Created notification:", JSON.stringify(createdNotification));
+      } catch (notificationError) {
+        console.error("Failed to create notification:", notificationError);
+      }
+      
       // Log all tasks in storage after creation
       const allTasks = await storage.getTasks(task.workspaceId);
       console.log(`All tasks after creation (${allTasks.length}):`, JSON.stringify(allTasks));
@@ -106,6 +124,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Task not found" });
       }
       
+      // Create a notification for the task update if significant fields were updated
+      const significantFields = [];
+      if ('status' in taskUpdateData && taskUpdateData.status) significantFields.push(`Status: ${taskUpdateData.status}`);
+      if ('priority' in taskUpdateData && taskUpdateData.priority) significantFields.push(`Priority: ${taskUpdateData.priority}`);
+      if ('assigneeId' in taskUpdateData && taskUpdateData.assigneeId) significantFields.push(`Assigned to user ID: ${taskUpdateData.assigneeId}`);
+      if ('dueDate' in taskUpdateData && taskUpdateData.dueDate) significantFields.push(`Due date: ${new Date(taskUpdateData.dueDate).toLocaleDateString()}`);
+      if ('taskType' in taskUpdateData && taskUpdateData.taskType) significantFields.push(`Task type: ${taskUpdateData.taskType}`);
+      
+      if (significantFields.length > 0) {
+        try {
+          const notification = {
+            title: "Task Updated",
+            message: `Task "${task.title}" was updated: ${significantFields.join(' | ')}`,
+            taskId: task.id,
+            userId: 1, // Admin user (should be changed to the appropriate user in a real app)
+            type: "task_updated",
+            isRead: false,
+            createdAt: new Date()
+          };
+          
+          const createdNotification = await storage.createNotification(notification);
+          console.log("Created update notification:", JSON.stringify(createdNotification));
+        } catch (notificationError) {
+          console.error("Failed to create update notification:", notificationError);
+        }
+      }
+      
       res.json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -130,6 +175,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
+    }
+    
+    // Create a notification for the status change
+    try {
+      const notification = {
+        title: "Task Status Changed",
+        message: `Task "${task.title}" status changed to: ${status}`,
+        taskId: task.id,
+        userId: 1, // Admin user (should be the appropriate user in a real app)
+        type: "task_status_changed",
+        isRead: false,
+        createdAt: new Date()
+      };
+      
+      const createdNotification = await storage.createNotification(notification);
+      console.log("Created status notification:", JSON.stringify(createdNotification));
+    } catch (notificationError) {
+      console.error("Failed to create status notification:", notificationError);
     }
     
     res.json(task);
