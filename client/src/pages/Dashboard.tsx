@@ -13,6 +13,7 @@ import GanttView from '@/components/GanttView';
 import TaskDetailModal from '@/components/TaskDetailModal';
 import NewTaskModal from '@/components/NewTaskModal';
 import { EmailIntegration } from '@/components/EmailIntegration';
+import { SlackIntegration } from '@/components/SlackIntegration';
 
 const Dashboard: FC = () => {
   const { toast } = useToast();
@@ -322,8 +323,9 @@ const Dashboard: FC = () => {
                 onFilter={handleFilter}
               />
             </div>
-            <div className="md:w-96">
+            <div className="md:w-96 space-y-4">
               <EmailIntegration />
+              <SlackIntegration />
             </div>
           </div>
           

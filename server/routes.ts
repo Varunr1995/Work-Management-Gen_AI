@@ -2,9 +2,15 @@ import express, { type Express, Request, Response, NextFunction } from "express"
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { insertTaskSchema, insertSubtaskSchema, insertCommentSchema } from "@shared/schema";
+import { 
+  insertTaskSchema, 
+  insertSubtaskSchema, 
+  insertCommentSchema,
+  TaskSource 
+} from "@shared/schema";
 import { emailService } from "./services/emailService";
 import { schedulerService } from "./services/schedulerService";
+import { slackService } from "./services/slackService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const apiRouter = express.Router();
@@ -423,6 +429,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error stopping email scheduler:', error);
       res.status(500).json({ 
         message: "Failed to stop email scheduler",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Slack integration API
+  apiRouter.post("/slack/configure", async (req: Request, res: Response) => {
+    try {
+      const { botToken, channelId } = req.body;
+      
+      console.log('Configuring Slack with:', {
+        channelId,
+        botTokenProvided: !!botToken
+      });
+      
+      // Validate required fields
+      if (!botToken || !channelId) {
+        return res.status(400).json({
+          message: "Slack Bot Token and Channel ID are required"
+        });
+      }
+      
+      // Configure the Slack service and test connection
+      const success = await slackService.configure({
+        botToken,
+        channelId
+      });
+      
+      console.log('Slack service configuration result:', {
+        success,
+        isConfigured: slackService.isServiceConfigured()
+      });
+      
+      if (!success) {
+        return res.status(400).json({
+          message: "Slack configuration failed. Could not establish connection. Please check your credentials and settings."
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: "Slack configuration saved and connection tested successfully",
+        config: slackService.getConfig(), // Returns config with token masked
+        isConfigured: slackService.isServiceConfigured()
+      });
+    } catch (error) {
+      console.error('Error configuring Slack service:', error);
+      res.status(500).json({
+        message: "Failed to configure Slack service",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  apiRouter.post("/slack/check", async (req: Request, res: Response) => {
+    try {
+      // Check if Slack service is configured
+      console.log('Check Slack messages requested. Is Slack service configured?', slackService.isServiceConfigured());
+      console.log('Current Slack configuration:', slackService.getConfig());
+      
+      if (!slackService.isServiceConfigured()) {
+        console.log('Slack service not configured, returning 400');
+        return res.status(400).json({ 
+          message: "Slack service not configured. Please configure Slack settings first." 
+        });
+      }
+
+      console.log('Slack service configured, proceeding to check messages...');
+      
+      // Process Slack messages and create tasks
+      const result = await slackService.processMessages();
+      console.log('Slack processing results:', result);
+      
+      res.json({ 
+        success: true, 
+        message: `Processed Slack messages: created ${result.tasksCreated} new task(s) and detected ${result.duplicatesDetected} duplicate(s)`,
+        tasksCreated: result.tasksCreated,
+        duplicatesDetected: result.duplicatesDetected
+      });
+    } catch (error) {
+      console.error('Error checking Slack messages:', error);
+      res.status(500).json({ 
+        message: "Failed to check Slack messages",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  apiRouter.post("/slack/send", async (req: Request, res: Response) => {
+    try {
+      const { message } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+      
+      if (!slackService.isServiceConfigured()) {
+        return res.status(400).json({ 
+          message: "Slack service not configured. Please configure Slack settings first." 
+        });
+      }
+      
+      const messageId = await slackService.sendMessage(message);
+      
+      res.json({ 
+        success: true, 
+        message: "Message sent to Slack channel successfully",
+        messageId
+      });
+    } catch (error) {
+      console.error('Error sending Slack message:', error);
+      res.status(500).json({ 
+        message: "Failed to send Slack message",
         error: error instanceof Error ? error.message : String(error)
       });
     }

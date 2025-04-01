@@ -67,6 +67,15 @@ export const TaskType = {
 
 export type TaskTypeValue = typeof TaskType[keyof typeof TaskType];
 
+// Task sources
+export const TaskSource = {
+  EMAIL: "email",
+  SLACK: "slack",
+  MANUAL: "manual",
+} as const;
+
+export type TaskSourceValue = typeof TaskSource[keyof typeof TaskSource];
+
 // Tasks table
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
@@ -83,6 +92,8 @@ export const tasks = pgTable("tasks", {
   taskType: text("task_type").default(TaskType.ADHOC), // 'sprint' or 'adhoc'
   parentTaskId: integer("parent_task_id").references(() => tasks.id), // For handling RE: emails
   emailThreadId: text("email_thread_id"), // For identifying email threads
+  source: text("source").default(TaskSource.MANUAL), // 'email', 'slack', or 'manual'
+  slackMessageId: text("slack_message_id"), // For identifying slack messages
 });
 
 export const insertTaskSchema = createInsertSchema(tasks).pick({
@@ -99,6 +110,8 @@ export const insertTaskSchema = createInsertSchema(tasks).pick({
   taskType: true,
   parentTaskId: true,
   emailThreadId: true,
+  source: true,
+  slackMessageId: true,
 });
 
 export type InsertTask = z.infer<typeof insertTaskSchema>;
