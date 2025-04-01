@@ -146,6 +146,9 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Task' : 'Create New Task'}</DialogTitle>
+          <p className="text-sm text-muted-foreground pt-2">
+            {isEditing ? 'Update the details of your task below.' : 'Fill in the details to create a new task.'}
+          </p>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
@@ -241,9 +244,9 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
                 <FormItem>
                   <FormLabel>Assignee</FormLabel>
                   <Select 
-                    onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)} 
-                    defaultValue={field.value?.toString()}
-                    value={field.value?.toString()}
+                    onValueChange={(value) => field.onChange(value === "unassigned" ? undefined : parseInt(value))} 
+                    defaultValue={field.value?.toString() || "unassigned"}
+                    value={field.value?.toString() || "unassigned"}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -251,7 +254,7 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Unassigned</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
                       {users.map(user => (
                         <SelectItem key={user.id} value={user.id.toString()}>
                           {user.displayName}
