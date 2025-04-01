@@ -27,8 +27,9 @@ export const NotificationsPanel: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'unread'>('unread');
   
-  // Get the current user ID (in a real app you would get this from auth context)
-  const userId = 1; // Default to the first user for demo purposes
+  // Get the current user ID (for our admin user)
+  // In a real app you would get this from auth context, but here we use Alex's ID (1) which has admin role
+  const userId = 1; // Admin user (Alex)
   
   // Get all notifications for the current user
   const { data: notifications = [], refetch } = useQuery<Notification[]>({

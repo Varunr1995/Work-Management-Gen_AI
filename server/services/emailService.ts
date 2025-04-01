@@ -383,6 +383,46 @@ export class EmailService {
         // Default to AdHoc if not specified
         parsedData.taskType = 'adhoc';
       }
+      
+      // Clean up the email body by removing all parsed metadata
+      let cleanBody = emailBody;
+      
+      // Remove all metadata lines
+      if (assigneeMatch) {
+        cleanBody = cleanBody.replace(/Assignee:\s*([^\n]+)/i, '');
+      }
+      
+      if (priorityMatch) {
+        cleanBody = cleanBody.replace(/Priority:\s*(high|medium|low)/i, '');
+        cleanBody = cleanBody.replace(/\b(high|medium|low) priority\b/i, '');
+      }
+      
+      if (deadlineMatch) {
+        cleanBody = cleanBody.replace(/Deadline:\s*([^\n]+)/i, '');
+        cleanBody = cleanBody.replace(/Due(?: Date)?:\s*([^\n]+)/i, '');
+        cleanBody = cleanBody.replace(/by:?\s*([^\n,:;]+)/i, '');
+      }
+      
+      if (taskTypeMatch) {
+        cleanBody = cleanBody.replace(/Task Type:\s*(sprint|adhoc)/i, '');
+        cleanBody = cleanBody.replace(/\b(sprint|adhoc) task\b/i, '');
+      }
+      
+      if (teamMatch) {
+        cleanBody = cleanBody.replace(/Team:\s*([^\n]+)/i, '');
+      }
+      
+      // Remove lines with just dashes or bullet points
+      cleanBody = cleanBody.replace(/^\s*[-•*]\s*$/gm, '');
+      
+      // Clean up multiple empty lines
+      cleanBody = cleanBody.replace(/\n{3,}/g, '\n\n');
+      
+      // Trim any leading/trailing whitespace
+      cleanBody = cleanBody.trim();
+      
+      // Update the parsed data with clean body
+      parsedData.body = cleanBody;
 
       // If the subject line contains certain keywords, auto-assign higher priority
       const urgentSubject = /(urgent|asap|immediately|deadline|due|important)/i.test(subject);
@@ -441,18 +481,72 @@ export class EmailService {
       // Check if this is a reply email and find the parent task
       const isReplyEmail = parsedData.subject.startsWith('Re:') || parsedData.subject.startsWith('RE:') || !!parsedData.inReplyTo;
       
-      if (isReplyEmail && parsedData.originalSubject) {
-        console.log(`This is a reply email. Looking for original task with subject: ${parsedData.originalSubject}`);
+      if (isReplyEmail) {
+        // Multiple strategies to find parent task
         
-        // Get all tasks and find one with matching title
-        const allTasks = await storage.getTasks(parsedData.workspaceId);
-        const parentTask = allTasks.find(task => 
-          task.title.toLowerCase() === parsedData.originalSubject?.toLowerCase()
-        );
+        // 1. First try to use inReplyTo if available
+        if (parsedData.inReplyTo) {
+          console.log(`Searching for parent task using inReplyTo: ${parsedData.inReplyTo}`);
+          const allTasks = await storage.getTasks(parsedData.workspaceId);
+          const parentTaskByMessageId = allTasks.find(task => 
+            task.emailThreadId === parsedData.inReplyTo
+          );
+          
+          if (parentTaskByMessageId) {
+            console.log(`Found parent task using inReplyTo, task ID: ${parentTaskByMessageId.id}`);
+            parentTaskId = parentTaskByMessageId.id;
+          }
+        }
         
-        if (parentTask) {
-          console.log(`Found parent task ID: ${parentTask.id}`);
-          parentTaskId = parentTask.id;
+        // 2. If we couldn't find by message ID, try by subject
+        if (!parentTaskId && parsedData.originalSubject) {
+          console.log(`Looking for original task with subject: ${parsedData.originalSubject}`);
+          
+          // Get all tasks and find one with matching title
+          const allTasks = await storage.getTasks(parsedData.workspaceId);
+          const parentTask = allTasks.find(task => 
+            task.title.toLowerCase() === parsedData.originalSubject?.toLowerCase()
+          );
+          
+          if (parentTask) {
+            console.log(`Found parent task by subject, task ID: ${parentTask.id}`);
+            parentTaskId = parentTask.id;
+          }
+        }
+        
+        // 3. If still not found, try looking for the most recent task with a title contained in the email body
+        if (!parentTaskId) {
+          console.log('Trying to find parent task from quoted text in email body');
+          
+          // Look for quoted text in the email body that might be a task title
+          const quotedTextMatch = parsedData.body.match(/^>([^\n]+)/m);
+          if (quotedTextMatch && quotedTextMatch[1]) {
+            const quotedText = quotedTextMatch[1].trim();
+            
+            // If there's a quoted text, check if any task title contains it
+            const allTasks = await storage.getTasks(parsedData.workspaceId);
+            
+            // Sort by start date (descending) so we get the most recent one first
+            const sortedTasks = allTasks.sort((a, b) => {
+              if (a.startDate && b.startDate) {
+                return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+              }
+              return 0;
+            });
+            
+            const parentTaskByQuote = sortedTasks.find(task => quotedText.includes(task.title));
+            
+            if (parentTaskByQuote) {
+              console.log(`Found parent task by quoted text, task ID: ${parentTaskByQuote.id}`);
+              parentTaskId = parentTaskByQuote.id;
+            }
+          }
+        }
+        
+        if (parentTaskId) {
+          console.log(`Successfully identified parent task ID: ${parentTaskId}`);
+        } else {
+          console.log('Could not find parent task for this reply email');
         }
       }
 

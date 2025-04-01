@@ -87,10 +87,10 @@ export class MemStorage implements IStorage {
   private initSampleData() {
     // Create sample users
     const users = [
-      { id: this.userId++, username: 'alex', password: 'password', displayName: 'Alex Morgan', avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80' },
-      { id: this.userId++, username: 'sarah', password: 'password', displayName: 'Sarah Chen', avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80' },
-      { id: this.userId++, username: 'marcus', password: 'password', displayName: 'Marcus Kim', avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80' },
-      { id: this.userId++, username: 'jessica', password: 'password', displayName: 'Jessica Lee', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80' }
+      { id: this.userId++, username: 'alex', password: 'password', displayName: 'Alex Morgan', avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80', role: 'admin' },
+      { id: this.userId++, username: 'sarah', password: 'password', displayName: 'Sarah Chen', avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80', role: 'user' },
+      { id: this.userId++, username: 'marcus', password: 'password', displayName: 'Marcus Kim', avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80', role: 'user' },
+      { id: this.userId++, username: 'jessica', password: 'password', displayName: 'Jessica Lee', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80', role: 'user' }
     ];
 
     for (const user of users) {

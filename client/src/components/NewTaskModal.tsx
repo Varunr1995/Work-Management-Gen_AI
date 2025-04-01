@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Task, User, TaskStatus, TaskPriority, insertTaskSchema } from '@shared/schema';
+import { Task, User, TaskStatus, TaskPriority, TaskType, insertTaskSchema } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -27,6 +27,7 @@ const newTaskSchema = insertTaskSchema.extend({
   description: z.string().min(1, 'Description is required'),
   status: z.string().min(1, 'Status is required'),
   priority: z.string().min(1, 'Priority is required'),
+  taskType: z.string().default(TaskType.ADHOC), // Add task type field with ADHOC as default
   assigneeId: z.number().optional(),
   workspaceId: z.number(),
   position: z.number(),
@@ -56,6 +57,7 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
       description: '',
       status: defaultStatus || TaskStatus.TODO,
       priority: TaskPriority.MEDIUM,
+      taskType: TaskType.ADHOC, // Default to AdHoc task type
       assigneeId: undefined,
       workspaceId: workspaceId,
       dueDate: undefined,
@@ -73,6 +75,7 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
         description: editTask.description || '',
         status: editTask.status,
         priority: editTask.priority,
+        taskType: editTask.taskType || TaskType.ADHOC, // Include task type with fallback to ADHOC
         assigneeId: editTask.assigneeId || undefined,
         workspaceId: editTask.workspaceId,
         dueDate: editTask.dueDate || undefined,
@@ -86,6 +89,7 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
         description: '',
         status: defaultStatus,
         priority: TaskPriority.MEDIUM,
+        taskType: TaskType.ADHOC, // Default to AdHoc task type
         assigneeId: undefined,
         workspaceId: workspaceId,
         dueDate: undefined,
@@ -171,6 +175,8 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
       // Ensure dates are properly formatted if present, otherwise set to today
       startDate: data.startDate ? data.startDate : new Date(),
       dueDate: data.dueDate ? data.dueDate : undefined,
+      // Always ensure task type is set
+      taskType: data.taskType || TaskType.ADHOC,
       // Always include these required fields
       completed: data.completed !== undefined ? data.completed : false,
       position: data.position !== undefined ? data.position : 0,
@@ -291,35 +297,66 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="assigneeId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Assignee</FormLabel>
-                  <Select 
-                    onValueChange={(value) => field.onChange(value === "unassigned" ? undefined : parseInt(value))} 
-                    defaultValue={field.value?.toString() || "unassigned"}
-                    value={field.value?.toString() || "unassigned"}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an assignee" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {users.map(user => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.displayName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="assigneeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assignee</FormLabel>
+                    <Select 
+                      onValueChange={(value) => field.onChange(value === "unassigned" ? undefined : parseInt(value))} 
+                      defaultValue={field.value?.toString() || "unassigned"}
+                      value={field.value?.toString() || "unassigned"}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an assignee" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {users.map(user => (
+                          <SelectItem key={user.id} value={user.id.toString()}>
+                            {user.displayName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="taskType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Task Type</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select task type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={TaskType.ADHOC}>Ad-hoc</SelectItem>
+                        <SelectItem value={TaskType.SPRINT}>Sprint</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Ad-hoc tasks are for daily work, Sprint tasks are for planned work
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
