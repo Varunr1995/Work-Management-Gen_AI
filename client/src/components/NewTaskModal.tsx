@@ -101,17 +101,23 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
   // Create task mutation
   const createTaskMutation = useMutation({
     mutationFn: async (data: NewTaskFormValues) => {
-      return apiRequest('POST', '/api/tasks', data);
+      const response = await apiRequest('POST', '/api/tasks', data);
+      console.log('Created task response:', response);
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Task created successfully:', data);
+      // Force refetch the tasks to ensure the latest data
       queryClient.invalidateQueries({ queryKey: ['/api/workspaces', workspaceId, 'tasks'] });
+      queryClient.refetchQueries({ queryKey: ['/api/workspaces', workspaceId, 'tasks'] });
       onClose();
       toast({
         title: "Task created",
         description: "Your task has been created successfully",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Error creating task:', error);
       toast({
         title: "Error",
         description: "Failed to create task",
@@ -123,17 +129,23 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
   // Update task mutation
   const updateTaskMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number, data: NewTaskFormValues }) => {
-      return apiRequest('PATCH', `/api/tasks/${id}`, data);
+      const response = await apiRequest('PATCH', `/api/tasks/${id}`, data);
+      console.log('Updated task response:', response);
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Task updated successfully:', data);
+      // Force refetch the tasks to ensure the latest data
       queryClient.invalidateQueries({ queryKey: ['/api/workspaces', workspaceId, 'tasks'] });
+      queryClient.refetchQueries({ queryKey: ['/api/workspaces', workspaceId, 'tasks'] });
       onClose();
       toast({
         title: "Task updated",
         description: "Your task has been updated successfully",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Error updating task:', error);
       toast({
         title: "Error",
         description: "Failed to update task",

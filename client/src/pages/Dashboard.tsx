@@ -1,4 +1,4 @@
-import { FC, useState } from 'react';
+import { FC, useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +25,7 @@ const Dashboard: FC = () => {
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [newTaskStatus, setNewTaskStatus] = useState<string | undefined>();
+  const [filterByUserId, setFilterByUserId] = useState<number | null>(null);
 
   // Workspace ID (hardcoded to 1 for demo)
   const workspaceId = 1;
@@ -159,6 +160,18 @@ const Dashboard: FC = () => {
     setIsNewTaskOpen(true);
   };
 
+  // Filter tasks by user ID if needed
+  const filteredTasks = useMemo(() => {
+    if (!filterByUserId) return tasks;
+    return tasks.filter(task => task.assigneeId === filterByUserId);
+  }, [tasks, filterByUserId]);
+  
+  // Handler for user filtering
+  const handleFilterByUser = (userId: number | null) => {
+    setFilterByUserId(userId);
+    console.log('Filtering tasks for user ID:', userId);
+  };
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
@@ -176,6 +189,7 @@ const Dashboard: FC = () => {
               <Toolbar 
                 onNewTask={handleNewTask} 
                 teamMembers={users}
+                onFilterByUser={handleFilterByUser}
               />
             </div>
             <div className="md:w-96">
@@ -187,7 +201,7 @@ const Dashboard: FC = () => {
             {/* List View */}
             {currentView === 'list' && (
               <ListView 
-                tasks={tasks}
+                tasks={filteredTasks}
                 users={users}
                 onTaskClick={handleTaskClick}
                 onTaskEdit={handleTaskEdit}
@@ -199,7 +213,7 @@ const Dashboard: FC = () => {
             {/* Kanban View */}
             {currentView === 'kanban' && (
               <KanbanView 
-                tasks={tasks}
+                tasks={filteredTasks}
                 users={users}
                 onTaskClick={handleTaskClick}
                 onStatusChange={handleTaskStatusChange}
@@ -210,7 +224,7 @@ const Dashboard: FC = () => {
             {/* Gantt View */}
             {currentView === 'gantt' && (
               <GanttView 
-                tasks={tasks}
+                tasks={filteredTasks}
                 users={users}
                 onTaskClick={handleTaskClick}
               />
