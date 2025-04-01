@@ -9,6 +9,8 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   displayName: text("display_name").notNull(),
   avatarUrl: text("avatar_url"),
+  email: text("email"),
+  role: text("role").default("user"), // 'user' or 'admin'
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -16,6 +18,8 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
   displayName: true,
   avatarUrl: true,
+  email: true,
+  role: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -55,6 +59,14 @@ export const TaskPriority = {
 
 export type TaskPriorityType = typeof TaskPriority[keyof typeof TaskPriority];
 
+// Task types
+export const TaskType = {
+  SPRINT: "sprint",
+  ADHOC: "adhoc",
+} as const;
+
+export type TaskTypeValue = typeof TaskType[keyof typeof TaskType];
+
 // Tasks table
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
@@ -68,6 +80,9 @@ export const tasks = pgTable("tasks", {
   startDate: timestamp("start_date"),
   completed: boolean("completed").default(false),
   position: integer("position").default(0),
+  taskType: text("task_type").default(TaskType.ADHOC), // 'sprint' or 'adhoc'
+  parentTaskId: integer("parent_task_id").references(() => tasks.id), // For handling RE: emails
+  emailThreadId: text("email_thread_id"), // For identifying email threads
 });
 
 export const insertTaskSchema = createInsertSchema(tasks).pick({
@@ -81,6 +96,9 @@ export const insertTaskSchema = createInsertSchema(tasks).pick({
   startDate: true,
   completed: true,
   position: true,
+  taskType: true,
+  parentTaskId: true,
+  emailThreadId: true,
 });
 
 export type InsertTask = z.infer<typeof insertTaskSchema>;
@@ -120,3 +138,26 @@ export const insertCommentSchema = createInsertSchema(comments).pick({
 
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 export type Comment = typeof comments.$inferSelect;
+
+// Notifications table
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  taskId: integer("task_id").references(() => tasks.id),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  type: text("type").default("task_created"), // 'task_created', 'task_updated', 'task_assigned', 'task_due', etc.
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).pick({
+  userId: true,
+  taskId: true,
+  title: true,
+  message: true,
+  type: true,
+});
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;

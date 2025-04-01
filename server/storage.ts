@@ -1,9 +1,10 @@
 import { 
   users, User, InsertUser,
   workspaces, Workspace, InsertWorkspace,
-  tasks, Task, InsertTask, TaskStatus, TaskPriority,
+  tasks, Task, InsertTask, TaskStatus, TaskPriority, TaskType,
   subtasks, Subtask, InsertSubtask,
-  comments, Comment, InsertComment
+  comments, Comment, InsertComment,
+  notifications, Notification, InsertNotification
 } from "@shared/schema";
 
 export interface IStorage {
@@ -24,6 +25,8 @@ export interface IStorage {
   getTask(id: number): Promise<Task | undefined>;
   getTasks(workspaceId: number): Promise<Task[]>;
   getTasksByStatus(workspaceId: number, status: string): Promise<Task[]>;
+  getTasksByType(workspaceId: number, taskType: string): Promise<Task[]>;
+  getRelatedTasks(parentTaskId: number): Promise<Task[]>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: number, task: Partial<InsertTask>): Promise<Task | undefined>;
   updateTaskStatus(id: number, status: string): Promise<Task | undefined>;
@@ -39,6 +42,13 @@ export interface IStorage {
   getComments(taskId: number): Promise<Comment[]>;
   createComment(comment: InsertComment): Promise<Comment>;
   deleteComment(id: number): Promise<boolean>;
+  
+  // Notification operations
+  getNotifications(userId: number): Promise<Notification[]>;
+  getUnreadNotifications(userId: number): Promise<Notification[]>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: number): Promise<Notification | undefined>;
+  deleteNotification(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -47,12 +57,14 @@ export class MemStorage implements IStorage {
   private tasks: Map<number, Task>;
   private subtasks: Map<number, Subtask>;
   private comments: Map<number, Comment>;
+  private notifications: Map<number, Notification>;
   
   private userId: number;
   private workspaceId: number;
   private taskId: number;
   private subtaskId: number;
   private commentId: number;
+  private notificationId: number;
 
   constructor() {
     this.users = new Map();
@@ -60,12 +72,14 @@ export class MemStorage implements IStorage {
     this.tasks = new Map();
     this.subtasks = new Map();
     this.comments = new Map();
+    this.notifications = new Map();
     
     this.userId = 1;
     this.workspaceId = 1;
     this.taskId = 1;
     this.subtaskId = 1;
     this.commentId = 1;
+    this.notificationId = 1;
     
     this.initSampleData();
   }
@@ -383,6 +397,69 @@ export class MemStorage implements IStorage {
 
   async deleteComment(id: number): Promise<boolean> {
     return this.comments.delete(id);
+  }
+
+  // Get tasks by type (Sprint/AdHoc)
+  async getTasksByType(workspaceId: number, taskType: string): Promise<Task[]> {
+    const tasks = Array.from(this.tasks.values())
+      .filter(task => task.workspaceId === workspaceId && task.taskType === taskType);
+    
+    console.log(`Found ${tasks.length} tasks with type ${taskType} for workspace ${workspaceId}`);
+    return tasks;
+  }
+
+  // Get related tasks (tasks that have this task as a parent)
+  async getRelatedTasks(parentTaskId: number): Promise<Task[]> {
+    return Array.from(this.tasks.values())
+      .filter(task => task.parentTaskId === parentTaskId);
+  }
+
+  // Notification operations
+  async getNotifications(userId: number): Promise<Notification[]> {
+    return Array.from(this.notifications.values())
+      .filter(notification => notification.userId === userId)
+      .sort((a, b) => {
+        // Sort by creation time, newest first
+        const aTime = a.createdAt?.getTime() || 0;
+        const bTime = b.createdAt?.getTime() || 0;
+        return bTime - aTime;
+      });
+  }
+
+  async getUnreadNotifications(userId: number): Promise<Notification[]> {
+    return Array.from(this.notifications.values())
+      .filter(notification => notification.userId === userId && !notification.isRead)
+      .sort((a, b) => {
+        // Sort by creation time, newest first
+        const aTime = a.createdAt?.getTime() || 0;
+        const bTime = b.createdAt?.getTime() || 0;
+        return bTime - aTime;
+      });
+  }
+
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const id = this.notificationId++;
+    const notification: Notification = {
+      ...insertNotification,
+      id,
+      isRead: false,
+      createdAt: new Date()
+    };
+    this.notifications.set(id, notification);
+    return notification;
+  }
+
+  async markNotificationAsRead(id: number): Promise<Notification | undefined> {
+    const existing = this.notifications.get(id);
+    if (!existing) return undefined;
+
+    const updated = { ...existing, isRead: true };
+    this.notifications.set(id, updated);
+    return updated;
+  }
+
+  async deleteNotification(id: number): Promise<boolean> {
+    return this.notifications.delete(id);
   }
 }
 

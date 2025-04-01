@@ -365,6 +365,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Notification routes
+  
+  // Get unread notifications for a user
+  apiRouter.get("/notifications/unread/:userId", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const notifications = await storage.getUnreadNotifications(userId);
+      res.json(notifications);
+    } catch (error) {
+      console.error('Error getting unread notifications:', error);
+      res.status(500).json({ 
+        message: "Failed to get unread notifications",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Mark a notification as read
+  apiRouter.patch("/notifications/:id/read", async (req: Request, res: Response) => {
+    try {
+      const notificationId = parseInt(req.params.id);
+      const updatedNotification = await storage.markNotificationAsRead(notificationId);
+      
+      if (!updatedNotification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      
+      res.json(updatedNotification);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      res.status(500).json({ 
+        message: "Failed to mark notification as read",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Mark all notifications as read for a user
+  apiRouter.patch("/notifications/mark-all-read/:userId", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const unreadNotifications = await storage.getUnreadNotifications(userId);
+      
+      const markReadPromises = unreadNotifications.map(notification => 
+        storage.markNotificationAsRead(notification.id)
+      );
+      
+      await Promise.all(markReadPromises);
+      
+      res.json({ 
+        success: true, 
+        message: "All notifications marked as read" 
+      });
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      res.status(500).json({ 
+        message: "Failed to mark all notifications as read",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Get all notifications for a user
+  apiRouter.get("/notifications/:userId", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const notifications = await storage.getNotifications(userId);
+      res.json(notifications);
+    } catch (error) {
+      console.error('Error getting notifications:', error);
+      res.status(500).json({ 
+        message: "Failed to get notifications",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Register API routes with prefix
   app.use('/api', apiRouter);
 

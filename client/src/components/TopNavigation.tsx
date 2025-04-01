@@ -1,7 +1,8 @@
 import { FC, useState } from 'react';
 import { useTaskViews } from '@/lib/hooks';
-import { Search, Bell, MessageCircle, MoreVertical, ListIcon, Kanban, Calendar } from 'lucide-react';
+import { Search, MessageCircle, MoreVertical, ListIcon, Kanban, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { NotificationsPanel } from './NotificationsPanel';
 
 interface TopNavigationProps {
   workspaceName: string;
@@ -37,9 +38,9 @@ const TopNavigation: FC<TopNavigationProps> = ({
             <Search className="h-5 w-5 text-slate-400 absolute left-2 top-2" />
           </div>
           
-          <button className="p-2 rounded-full text-slate-500 hover:bg-slate-100">
-            <Bell className="h-6 w-6" />
-          </button>
+          <div className="p-1">
+            <NotificationsPanel />
+          </div>
           
           <button className="p-2 rounded-full text-slate-500 hover:bg-slate-100">
             <MessageCircle className="h-6 w-6" />

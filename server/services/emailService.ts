@@ -6,8 +6,10 @@ type ParsedMail = {
   text?: string;
   subject?: string;
   messageId?: string;
+  inReplyTo?: string;
+  references?: string[];
 };
-import { Task, TaskPriority, TaskStatus, InsertTask } from '@shared/schema';
+import { Task, TaskPriority, TaskStatus, TaskType, InsertTask, InsertNotification } from '@shared/schema';
 import { storage } from '../storage';
 
 // Interface for parsed email data
@@ -20,6 +22,10 @@ interface ParsedEmailData {
   priority?: string;
   workspaceId: number;
   messageId?: string;
+  inReplyTo?: string;
+  references?: string[];
+  taskType?: 'sprint' | 'adhoc';
+  originalSubject?: string;
 }
 
 // Interface for email configuration
@@ -293,15 +299,29 @@ export class EmailService {
       const emailBody = email.text || '';
       const subject = email.subject || 'No Subject';
       const messageId = email.messageId || '';
+      const inReplyTo = email.inReplyTo;
+      const references = email.references || [];
 
       console.log(`Attempting to parse email: "${subject}"`);
+
+      // Detect if this is a reply email
+      const isReplyEmail = subject.startsWith('Re:') || subject.startsWith('RE:') || !!inReplyTo;
+      let originalSubject = subject;
+      
+      // Remove the 'Re:' prefix if it exists
+      if (isReplyEmail && (subject.startsWith('Re:') || subject.startsWith('RE:'))) {
+        originalSubject = subject.replace(/^Re:\s*/i, '').trim();
+      }
 
       // Parse the email body for task details
       const parsedData: ParsedEmailData = {
         subject,
         body: emailBody,
         workspaceId: 1,  // Default workspace ID
-        messageId
+        messageId,
+        inReplyTo,
+        references,
+        originalSubject: isReplyEmail ? originalSubject : undefined
       };
 
       // Try to extract information from formatted tags first
@@ -351,6 +371,19 @@ export class EmailService {
         console.log(`Found priority: ${priority}`);
       }
 
+      // Extract task type (Sprint/AdHoc)
+      const taskTypeMatch = emailBody.match(/Task Type:\s*(sprint|adhoc)/i) ||
+                          emailBody.match(/\b(sprint|adhoc) task\b/i);
+
+      if (taskTypeMatch) {
+        const taskType = taskTypeMatch[1].toLowerCase() as 'sprint' | 'adhoc';
+        parsedData.taskType = taskType;
+        console.log(`Found task type: ${taskType}`);
+      } else {
+        // Default to AdHoc if not specified
+        parsedData.taskType = 'adhoc';
+      }
+
       // If the subject line contains certain keywords, auto-assign higher priority
       const urgentSubject = /(urgent|asap|immediately|deadline|due|important)/i.test(subject);
       if (urgentSubject && !parsedData.priority) {
@@ -393,6 +426,7 @@ export class EmailService {
       // Check if we should update an existing task based on message ID
       let existingTask: Task | undefined = undefined;
       let isNewTask = true;
+      let parentTaskId: number | null = null;
       
       if (parsedData.messageId) {
         // In a real implementation, we would look up tasks by message ID in a database
@@ -401,6 +435,24 @@ export class EmailService {
         
         if (existingTask) {
           isNewTask = false;
+        }
+      }
+
+      // Check if this is a reply email and find the parent task
+      const isReplyEmail = parsedData.subject.startsWith('Re:') || parsedData.subject.startsWith('RE:') || !!parsedData.inReplyTo;
+      
+      if (isReplyEmail && parsedData.originalSubject) {
+        console.log(`This is a reply email. Looking for original task with subject: ${parsedData.originalSubject}`);
+        
+        // Get all tasks and find one with matching title
+        const allTasks = await storage.getTasks(parsedData.workspaceId);
+        const parentTask = allTasks.find(task => 
+          task.title.toLowerCase() === parsedData.originalSubject?.toLowerCase()
+        );
+        
+        if (parentTask) {
+          console.log(`Found parent task ID: ${parentTask.id}`);
+          parentTaskId = parentTask.id;
         }
       }
 
@@ -429,6 +481,9 @@ export class EmailService {
         }
       }
 
+      // Determine task type
+      const taskType = parsedData.taskType || TaskType.ADHOC;
+
       // If we're updating an existing task
       if (!isNewTask && existingTask) {
         const updatedTask = await storage.updateTask(existingTask.id, {
@@ -436,9 +491,10 @@ export class EmailService {
           description: `${parsedData.body}\n\n(Updated from email)`,
           priority,
           assigneeId,
-          dueDate: parsedData.deadline || existingTask.dueDate
+          dueDate: parsedData.deadline || existingTask.dueDate,
+          taskType
         });
-        
+
         return { task: updatedTask || null, isNew: false };
       } else {
         // Create a new task
@@ -451,7 +507,10 @@ export class EmailService {
           workspaceId: parsedData.workspaceId,
           dueDate: parsedData.deadline || null,
           startDate: new Date(),
-          completed: false
+          completed: false,
+          taskType,
+          parentTaskId,
+          emailThreadId: parsedData.messageId
         };
 
         // Save the task to storage
@@ -460,6 +519,30 @@ export class EmailService {
         // If we have a message ID, store it for future updates
         if (createdTask && parsedData.messageId) {
           this.existingTasksByMessageId.set(parsedData.messageId, createdTask);
+        }
+
+        // Create a notification for admins about the new task
+        if (createdTask) {
+          try {
+            // Find admin users
+            const users = await storage.getUsers();
+            const adminUsers = users.filter(user => user.role === 'admin');
+
+            // Create notification for each admin
+            for (const admin of adminUsers) {
+              const notification: InsertNotification = {
+                userId: admin.id,
+                taskId: createdTask.id,
+                title: 'New Task Created',
+                message: `A new ${taskType} task "${createdTask.title}" has been created from an email.`,
+                type: 'task_created'
+              };
+              
+              await storage.createNotification(notification);
+            }
+          } catch (err) {
+            console.error('Error creating admin notifications:', err);
+          }
         }
         
         return { task: createdTask, isNew: true };
