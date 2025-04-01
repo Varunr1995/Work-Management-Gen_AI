@@ -1,4 +1,4 @@
-import { gmailService } from './emailService';
+import { emailService } from './emailService';
 
 /**
  * Class to handle scheduled jobs
@@ -15,6 +15,11 @@ export class SchedulerService {
     if (this.emailCheckInterval) {
       console.log('Email checker already running');
       return;
+    }
+
+    // Make sure the email service is configured
+    if (!emailService.isServiceConfigured()) {
+      throw new Error('Email service is not configured. Please configure email settings first.');
     }
 
     console.log(`Starting email checker service to run every ${intervalMinutes} minutes`);
@@ -43,6 +48,13 @@ export class SchedulerService {
   }
 
   /**
+   * Check if the scheduler is currently running
+   */
+  isSchedulerRunning(): boolean {
+    return this.emailCheckInterval !== null;
+  }
+
+  /**
    * Process emails and create tasks
    */
   private async processEmails(): Promise<void> {
@@ -56,13 +68,13 @@ export class SchedulerService {
       this.isRunning = true;
       console.log('Checking for new emails...');
       
-      // Process emails using the Gmail service
-      const tasks = await gmailService.processEmails();
+      // Process emails using the Email service
+      const result = await emailService.processEmails();
       
-      if (tasks.length > 0) {
-        console.log(`Created ${tasks.length} new task(s) from emails`);
+      if (result.tasksCreated > 0 || result.tasksUpdated > 0) {
+        console.log(`Created ${result.tasksCreated} new task(s) and updated ${result.tasksUpdated} task(s) from emails`);
       } else {
-        console.log('No new tasks created from emails');
+        console.log('No new or updated tasks from emails');
       }
     } catch (error) {
       console.error('Error processing emails:', error);

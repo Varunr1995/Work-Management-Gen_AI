@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertTaskSchema, insertSubtaskSchema, insertCommentSchema } from "@shared/schema";
-import { gmailService } from "./services/emailService";
+import { emailService } from "./services/emailService";
 import { schedulerService } from "./services/schedulerService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -232,27 +232,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Email integration API
+  apiRouter.post("/email/configure", async (req: Request, res: Response) => {
+    try {
+      const { emailAddress, emailPassword, imapHost, imapPort, emailLabel } = req.body;
+      
+      // Validate required fields
+      if (!emailAddress || !emailPassword) {
+        return res.status(400).json({
+          message: "Email address and password are required"
+        });
+      }
+      
+      // Configure the email service
+      emailService.configure({
+        emailAddress,
+        emailPassword,
+        imapHost: imapHost || 'imap.gmail.com',
+        imapPort: imapPort || 993,
+        emailLabel: emailLabel || 'taskflow'
+      });
+      
+      res.json({
+        success: true,
+        message: "Email configuration saved",
+        config: emailService.getConfig() // Returns config with password masked
+      });
+    } catch (error) {
+      console.error('Error configuring email service:', error);
+      res.status(500).json({
+        message: "Failed to configure email service",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   apiRouter.post("/email/check", async (req: Request, res: Response) => {
     try {
-      // Check if required Gmail secrets are set
-      if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET || !process.env.GMAIL_REFRESH_TOKEN) {
+      // Check if email service is configured
+      if (!emailService.isServiceConfigured()) {
         return res.status(400).json({ 
-          message: "Gmail credentials not configured", 
-          missingCredentials: {
-            clientId: !process.env.GMAIL_CLIENT_ID,
-            clientSecret: !process.env.GMAIL_CLIENT_SECRET,
-            refreshToken: !process.env.GMAIL_REFRESH_TOKEN
-          }
+          message: "Email service not configured. Please configure email settings first." 
         });
       }
 
-      // Process emails and create tasks
-      const tasks = await gmailService.processEmails();
+      // Process emails and create/update tasks
+      const result = await emailService.processEmails();
       
       res.json({ 
         success: true, 
-        message: `Processed emails and created ${tasks.length} new task(s)`,
-        tasks 
+        message: `Processed emails: created ${result.tasksCreated} new task(s) and updated ${result.tasksUpdated} task(s)`,
+        tasksCreated: result.tasksCreated,
+        tasksUpdated: result.tasksUpdated
       });
     } catch (error) {
       console.error('Error checking emails:', error);
@@ -267,15 +297,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { intervalMinutes } = req.body;
       
-      // Check if required Gmail secrets are set
-      if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET || !process.env.GMAIL_REFRESH_TOKEN) {
+      // Check if email service is configured
+      if (!emailService.isServiceConfigured()) {
         return res.status(400).json({ 
-          message: "Gmail credentials not configured", 
-          missingCredentials: {
-            clientId: !process.env.GMAIL_CLIENT_ID,
-            clientSecret: !process.env.GMAIL_CLIENT_SECRET,
-            refreshToken: !process.env.GMAIL_REFRESH_TOKEN
-          }
+          message: "Email service not configured. Please configure email settings first." 
         });
       }
 
