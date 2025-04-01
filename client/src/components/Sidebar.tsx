@@ -30,16 +30,14 @@ export const Sidebar: FC = () => {
           <ul>
             {navigation.map((item) => (
               <li key={item.name} className="mb-1">
-                <Link href={item.href}>
-                  <a className={cn(
-                    "flex items-center p-2 rounded-md", 
-                    item.current 
-                      ? "bg-slate-700 text-white" 
-                      : "text-slate-300 hover:bg-slate-700"
-                  )}>
-                    <item.icon className="h-5 w-5 mr-2" />
-                    {item.name}
-                  </a>
+                <Link href={item.href} className={cn(
+                  "flex items-center p-2 rounded-md", 
+                  item.current 
+                    ? "bg-slate-700 text-white" 
+                    : "text-slate-300 hover:bg-slate-700"
+                )}>
+                  <item.icon className="h-5 w-5 mr-2" />
+                  {item.name}
                 </Link>
               </li>
             ))}
@@ -51,16 +49,14 @@ export const Sidebar: FC = () => {
           <ul>
             {teams.map((team) => (
               <li key={team.name} className="mb-1">
-                <Link href={team.href}>
-                  <a className={cn(
-                    "flex items-center p-2 rounded-md", 
-                    team.current 
-                      ? "bg-slate-700 text-white" 
-                      : "text-slate-300 hover:bg-slate-700"
-                  )}>
-                    <team.icon className="h-5 w-5 mr-2" />
-                    {team.name}
-                  </a>
+                <Link href={team.href} className={cn(
+                  "flex items-center p-2 rounded-md", 
+                  team.current 
+                    ? "bg-slate-700 text-white" 
+                    : "text-slate-300 hover:bg-slate-700"
+                )}>
+                  <team.icon className="h-5 w-5 mr-2" />
+                  {team.name}
                 </Link>
               </li>
             ))}
