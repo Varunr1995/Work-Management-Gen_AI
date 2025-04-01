@@ -1,8 +1,10 @@
-import express, { type Express, Request, Response } from "express";
+import express, { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertTaskSchema, insertSubtaskSchema, insertCommentSchema } from "@shared/schema";
+import { gmailService } from "./services/emailService";
+import { schedulerService } from "./services/schedulerService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const apiRouter = express.Router();
@@ -207,6 +209,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     res.status(204).send();
+  });
+
+  // Email integration API
+  apiRouter.post("/email/check", async (req: Request, res: Response) => {
+    try {
+      // Check if required Gmail secrets are set
+      if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET || !process.env.GMAIL_REFRESH_TOKEN) {
+        return res.status(400).json({ 
+          message: "Gmail credentials not configured", 
+          missingCredentials: {
+            clientId: !process.env.GMAIL_CLIENT_ID,
+            clientSecret: !process.env.GMAIL_CLIENT_SECRET,
+            refreshToken: !process.env.GMAIL_REFRESH_TOKEN
+          }
+        });
+      }
+
+      // Process emails and create tasks
+      const tasks = await gmailService.processEmails();
+      
+      res.json({ 
+        success: true, 
+        message: `Processed emails and created ${tasks.length} new task(s)`,
+        tasks 
+      });
+    } catch (error) {
+      console.error('Error checking emails:', error);
+      res.status(500).json({ 
+        message: "Failed to check emails",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  apiRouter.post("/email/scheduler/start", async (req: Request, res: Response) => {
+    try {
+      const { intervalMinutes } = req.body;
+      
+      // Check if required Gmail secrets are set
+      if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET || !process.env.GMAIL_REFRESH_TOKEN) {
+        return res.status(400).json({ 
+          message: "Gmail credentials not configured", 
+          missingCredentials: {
+            clientId: !process.env.GMAIL_CLIENT_ID,
+            clientSecret: !process.env.GMAIL_CLIENT_SECRET,
+            refreshToken: !process.env.GMAIL_REFRESH_TOKEN
+          }
+        });
+      }
+
+      // Start the scheduler with the provided interval or default (5 minutes)
+      schedulerService.startEmailChecker(intervalMinutes || 5);
+      
+      res.json({ 
+        success: true, 
+        message: `Email scheduler started with ${intervalMinutes || 5} minute interval` 
+      });
+    } catch (error) {
+      console.error('Error starting email scheduler:', error);
+      res.status(500).json({ 
+        message: "Failed to start email scheduler",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  apiRouter.post("/email/scheduler/stop", async (req: Request, res: Response) => {
+    try {
+      // Stop the email checking scheduler
+      schedulerService.stopEmailChecker();
+      
+      res.json({ 
+        success: true, 
+        message: "Email scheduler stopped" 
+      });
+    } catch (error) {
+      console.error('Error stopping email scheduler:', error);
+      res.status(500).json({ 
+        message: "Failed to stop email scheduler",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   });
 
   // Register API routes with prefix

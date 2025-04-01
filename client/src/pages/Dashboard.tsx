@@ -12,6 +12,7 @@ import KanbanView from '@/components/KanbanView';
 import GanttView from '@/components/GanttView';
 import TaskDetailModal from '@/components/TaskDetailModal';
 import NewTaskModal from '@/components/NewTaskModal';
+import { EmailIntegration } from '@/components/EmailIntegration';
 
 const Dashboard: FC = () => {
   const { toast } = useToast();
@@ -34,7 +35,7 @@ const Dashboard: FC = () => {
   });
 
   // Fetch workspace
-  const { data: workspace } = useQuery({
+  const { data: workspace = { name: 'Workspace' } } = useQuery<{ name: string }>({
     queryKey: ['/api/workspaces', workspaceId],
   });
 
@@ -67,10 +68,11 @@ const Dashboard: FC = () => {
   // Toggle task completion mutation
   const toggleTaskCompletionMutation = useMutation({
     mutationFn: async ({ taskId, completed }: { taskId: number; completed: boolean }) => {
+      const task = tasks.find(t => t.id === taskId);
       const status = completed ? TaskStatus.COMPLETED : TaskStatus.TODO;
       return apiRequest('PATCH', `/api/tasks/${taskId}`, { 
         completed,
-        status: completed ? TaskStatus.COMPLETED : task?.status
+        status: completed ? TaskStatus.COMPLETED : (task?.status || TaskStatus.TODO)
       });
     },
     onSuccess: () => {
@@ -165,10 +167,17 @@ const Dashboard: FC = () => {
         />
 
         <main className="flex-1 overflow-y-auto bg-slate-50 p-6">
-          <Toolbar 
-            onNewTask={handleNewTask} 
-            teamMembers={users}
-          />
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
+            <div className="flex-1">
+              <Toolbar 
+                onNewTask={handleNewTask} 
+                teamMembers={users}
+              />
+            </div>
+            <div className="md:w-96">
+              <EmailIntegration />
+            </div>
+          </div>
           
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             {/* List View */}
