@@ -6,7 +6,7 @@ import { Task, User, TaskStatus } from '@shared/schema';
 
 import Sidebar from '@/components/Sidebar';
 import TopNavigation from '@/components/TopNavigation';
-import Toolbar from '@/components/Toolbar';
+import Toolbar, { SortOption, FilterOption } from '@/components/Toolbar';
 import ListView from '@/components/ListView';
 import KanbanView from '@/components/KanbanView';
 import GanttView from '@/components/GanttView';
@@ -26,6 +26,8 @@ const Dashboard: FC = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [newTaskStatus, setNewTaskStatus] = useState<string | undefined>();
   const [filterByUserId, setFilterByUserId] = useState<number | null>(null);
+  const [sortOption, setSortOption] = useState<SortOption>(null);
+  const [filterOption, setFilterOption] = useState<FilterOption>(null);
 
   // Workspace ID (hardcoded to 1 for demo)
   const workspaceId = 1;
@@ -44,9 +46,23 @@ const Dashboard: FC = () => {
   const { data: tasks = [], isLoading: isTasksLoading, refetch: refetchTasks } = useQuery<Task[]>({
     queryKey: ['/api/workspaces', workspaceId, 'tasks'],
     queryFn: async () => {
-      const response = await apiRequest('GET', `/api/workspaces/${workspaceId}/tasks`);
-      return response as unknown as Task[];
-    }
+      try {
+        console.log('Fetching tasks for workspace:', workspaceId);
+        const response = await apiRequest('GET', `/api/workspaces/${workspaceId}/tasks`);
+        console.log('Raw tasks response:', response);
+        
+        // Make sure we're returning an array
+        const taskArray = Array.isArray(response) ? response : [];
+        console.log('Processed tasks:', taskArray);
+        return taskArray;
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        return [];
+      }
+    },
+    // Ensure task data is always fresh
+    refetchOnWindowFocus: true,
+    refetchInterval: 5000,
   });
 
   // Update task status mutation
@@ -160,16 +176,92 @@ const Dashboard: FC = () => {
     setIsNewTaskOpen(true);
   };
 
-  // Filter tasks by user ID if needed
+  // Filter and sort tasks based on current options
   const filteredTasks = useMemo(() => {
-    if (!filterByUserId) return tasks;
-    return tasks.filter(task => task.assigneeId === filterByUserId);
-  }, [tasks, filterByUserId]);
+    // Make sure tasks is an array before processing
+    if (!Array.isArray(tasks)) {
+      console.log('Tasks is not an array:', tasks);
+      return [];
+    }
+    
+    // Start with all tasks
+    let result = [...tasks];
+    
+    // Filter by user ID if needed
+    if (filterByUserId !== null) {
+      result = result.filter(task => task.assigneeId === filterByUserId);
+    }
+    
+    // Apply task status filter
+    if (filterOption) {
+      switch (filterOption) {
+        case 'completed':
+          result = result.filter(task => task.completed === true);
+          break;
+        case 'active':
+          result = result.filter(task => task.completed !== true);
+          break;
+        // 'all' shows everything, no filter needed
+      }
+    }
+    
+    // Apply sorting
+    if (sortOption) {
+      switch (sortOption) {
+        case 'due-asc':
+          result.sort((a, b) => {
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+          });
+          break;
+        case 'due-desc':
+          result.sort((a, b) => {
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+          });
+          break;
+        case 'priority-asc': // Low to high
+          result.sort((a, b) => {
+            const priorityOrder = { low: 0, medium: 1, high: 2 };
+            return priorityOrder[a.priority as keyof typeof priorityOrder] - 
+                   priorityOrder[b.priority as keyof typeof priorityOrder];
+          });
+          break;
+        case 'priority-desc': // High to low
+          result.sort((a, b) => {
+            const priorityOrder = { low: 0, medium: 1, high: 2 };
+            return priorityOrder[b.priority as keyof typeof priorityOrder] - 
+                   priorityOrder[a.priority as keyof typeof priorityOrder];
+          });
+          break;
+        case 'title-asc':
+          result.sort((a, b) => a.title.localeCompare(b.title));
+          break;
+        case 'title-desc':
+          result.sort((a, b) => b.title.localeCompare(a.title));
+          break;
+      }
+    }
+    
+    return result;
+  }, [tasks, filterByUserId, filterOption, sortOption]);
   
-  // Handler for user filtering
+  // Handlers for filtering and sorting
   const handleFilterByUser = (userId: number | null) => {
     setFilterByUserId(userId);
     console.log('Filtering tasks for user ID:', userId);
+  };
+  
+  const handleSort = (option: SortOption) => {
+    setSortOption(option);
+    console.log('Sorting tasks by:', option);
+  };
+  
+  const handleFilter = (option: FilterOption) => {
+    setFilterOption(option);
+    console.log('Filtering tasks by status:', option);
   };
 
   return (
@@ -190,6 +282,8 @@ const Dashboard: FC = () => {
                 onNewTask={handleNewTask} 
                 teamMembers={users}
                 onFilterByUser={handleFilterByUser}
+                onSort={handleSort}
+                onFilter={handleFilter}
               />
             </div>
             <div className="md:w-96">
