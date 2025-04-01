@@ -44,6 +44,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       tasks = await storage.getTasks(workspaceId);
     }
     
+    console.log(`Retrieved ${tasks.length} tasks for workspace ${workspaceId}:`, JSON.stringify(tasks));
+    
     res.json(tasks);
   });
 
@@ -70,7 +72,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const validatedData = insertTaskSchema.parse(taskData);
+      console.log("Validated task data:", JSON.stringify(validatedData));
       const task = await storage.createTask(validatedData);
+      console.log("Created task:", JSON.stringify(task));
+      
+      // Log all tasks in storage after creation
+      const allTasks = await storage.getTasks(task.workspaceId);
+      console.log(`All tasks after creation (${allTasks.length}):`, JSON.stringify(allTasks));
+      
       res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {

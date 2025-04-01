@@ -272,19 +272,37 @@ export class MemStorage implements IStorage {
   }
 
   async getTasks(workspaceId: number): Promise<Task[]> {
-    return Array.from(this.tasks.values())
-      .filter(task => task.workspaceId === workspaceId);
+    const allTasks = Array.from(this.tasks.values());
+    console.log(`Storage has ${allTasks.length} total tasks`);
+    
+    const filteredTasks = allTasks.filter(task => task.workspaceId === workspaceId);
+    console.log(`Found ${filteredTasks.length} tasks for workspace ${workspaceId}`);
+    
+    return filteredTasks;
   }
 
   async getTasksByStatus(workspaceId: number, status: string): Promise<Task[]> {
-    return Array.from(this.tasks.values())
+    const tasks = Array.from(this.tasks.values())
       .filter(task => task.workspaceId === workspaceId && task.status === status);
+    
+    console.log(`Found ${tasks.length} tasks with status ${status} for workspace ${workspaceId}`);
+    return tasks;
   }
 
   async createTask(insertTask: InsertTask): Promise<Task> {
     const id = this.taskId++;
     const task: Task = { ...insertTask, id };
+    
+    console.log(`Creating new task with ID ${id}:`, JSON.stringify(task));
     this.tasks.set(id, task);
+    
+    // Verify task was stored properly
+    const storedTask = this.tasks.get(id);
+    console.log(`Stored task (ID: ${id}):`, storedTask ? JSON.stringify(storedTask) : 'NOT FOUND');
+    
+    // Check task count
+    console.log(`Storage now has ${this.tasks.size} total tasks`);
+    
     return task;
   }
 

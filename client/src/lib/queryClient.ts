@@ -11,7 +11,7 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
-): Promise<Response> {
+): Promise<any> {
   const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
@@ -20,7 +20,19 @@ export async function apiRequest(
   });
 
   await throwIfResNotOk(res);
-  return res;
+  
+  // Parse JSON response
+  try {
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await res.json();
+    } else {
+      return res;
+    }
+  } catch (error) {
+    console.error('Error parsing JSON response:', error);
+    return res;
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";

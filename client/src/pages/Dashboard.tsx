@@ -33,13 +33,39 @@ const Dashboard: FC = () => {
   const workspaceId = 1;
 
   // Fetch users
-  const { data: users = [] } = useQuery<User[]>({
+  const { data: users = [], isLoading: isUsersLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
+    queryFn: async () => {
+      try {
+        console.log('Fetching users');
+        const response = await apiRequest('GET', '/api/users');
+        console.log('Users response:', response);
+        if (!response) return [];
+        return Array.isArray(response) ? response : [];
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        return [];
+      }
+    },
+    refetchOnMount: true
   });
 
   // Fetch workspace
   const { data: workspace = { name: 'Workspace' } } = useQuery<{ name: string }>({
     queryKey: ['/api/workspaces', workspaceId],
+    queryFn: async () => {
+      try {
+        console.log('Fetching workspace:', workspaceId);
+        const response = await apiRequest('GET', `/api/workspaces/${workspaceId}`);
+        console.log('Workspace response:', response);
+        if (!response) return { name: 'Workspace' };
+        return response;
+      } catch (error) {
+        console.error('Error fetching workspace:', error);
+        return { name: 'Workspace' };
+      }
+    },
+    refetchOnMount: true
   });
 
   // Fetch tasks
@@ -52,8 +78,15 @@ const Dashboard: FC = () => {
         console.log('Raw tasks response:', response);
         
         // Make sure we're returning an array
+        if (!response) return [];
         const taskArray = Array.isArray(response) ? response : [];
-        console.log('Processed tasks:', taskArray);
+        
+        // Log the returned tasks
+        console.log('Number of tasks loaded:', taskArray.length);
+        if (taskArray.length > 0) {
+          console.log('First task:', taskArray[0]);
+        }
+        
         return taskArray;
       } catch (error) {
         console.error('Error fetching tasks:', error);
@@ -63,6 +96,9 @@ const Dashboard: FC = () => {
     // Ensure task data is always fresh
     refetchOnWindowFocus: true,
     refetchInterval: 5000,
+    refetchOnMount: true,
+    // In React Query v5, cacheTime is renamed to gcTime
+    gcTime: 0
   });
 
   // Update task status mutation
