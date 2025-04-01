@@ -61,8 +61,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.post("/tasks", async (req: Request, res: Response) => {
     try {
       console.log("Creating task with data:", JSON.stringify(req.body));
-      const taskData = insertTaskSchema.parse(req.body);
-      const task = await storage.createTask(taskData);
+      // Parse the task data with the insert schema - handle date conversions
+      const taskData = {
+        ...req.body,
+        // Convert dates if present
+        startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
+        dueDate: req.body.dueDate ? new Date(req.body.dueDate) : undefined,
+      };
+      
+      const validatedData = insertTaskSchema.parse(taskData);
+      const task = await storage.createTask(validatedData);
       res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {

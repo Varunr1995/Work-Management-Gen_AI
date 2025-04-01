@@ -62,10 +62,10 @@ const KanbanView: FC<KanbanViewProps> = ({
   onAddTask 
 }) => {
   const tasksByStatus = {
-    [TaskStatus.TODO]: tasks.filter(task => task.status === TaskStatus.TODO),
-    [TaskStatus.IN_PROGRESS]: tasks.filter(task => task.status === TaskStatus.IN_PROGRESS),
-    [TaskStatus.IN_REVIEW]: tasks.filter(task => task.status === TaskStatus.IN_REVIEW),
-    [TaskStatus.COMPLETED]: tasks.filter(task => task.status === TaskStatus.COMPLETED),
+    [TaskStatus.TODO]: Array.isArray(tasks) ? tasks.filter(task => task.status === TaskStatus.TODO) : [],
+    [TaskStatus.IN_PROGRESS]: Array.isArray(tasks) ? tasks.filter(task => task.status === TaskStatus.IN_PROGRESS) : [],
+    [TaskStatus.IN_REVIEW]: Array.isArray(tasks) ? tasks.filter(task => task.status === TaskStatus.IN_REVIEW) : [],
+    [TaskStatus.COMPLETED]: Array.isArray(tasks) ? tasks.filter(task => task.status === TaskStatus.COMPLETED) : [],
   };
 
   const statuses = [
@@ -97,7 +97,7 @@ const KanbanView: FC<KanbanViewProps> = ({
 
   const getAssignee = (assigneeId: number | null) => {
     if (!assigneeId) return null;
-    return users.find(user => user.id === assigneeId);
+    return Array.isArray(users) ? users.find(user => user.id === assigneeId) : null;
   };
 
   return (

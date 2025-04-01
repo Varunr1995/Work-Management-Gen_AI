@@ -40,8 +40,12 @@ const Dashboard: FC = () => {
   });
 
   // Fetch tasks
-  const { data: tasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({
+  const { data: tasks = [], isLoading: isTasksLoading, refetch: refetchTasks } = useQuery<Task[]>({
     queryKey: ['/api/workspaces', workspaceId, 'tasks'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/workspaces/${workspaceId}/tasks`);
+      return response as unknown as Task[];
+    }
   });
 
   // Update task status mutation

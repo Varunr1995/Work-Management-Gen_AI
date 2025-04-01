@@ -103,7 +103,7 @@ const ListView: FC<ListViewProps> = ({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-slate-200">
-            {tasks.map((task) => {
+            {Array.isArray(tasks) && tasks.map((task) => {
               const assignee = getAssignee(task.assigneeId || null);
               return (
                 <tr 
@@ -115,9 +115,9 @@ const ListView: FC<ListViewProps> = ({
                     <div className="flex items-center">
                       <Checkbox 
                         className="h-4 w-4 text-primary rounded border-slate-300"
-                        checked={task.completed}
+                        checked={Boolean(task.completed)}
                         onCheckedChange={(checked) => {
-                          onTaskComplete(task.id, checked as boolean);
+                          onTaskComplete(task.id, Boolean(checked));
                           // Stop event propagation to prevent the row click event
                           event?.stopPropagation();
                         }}
@@ -186,7 +186,7 @@ const ListView: FC<ListViewProps> = ({
                 </tr>
               );
             })}
-            {tasks.length === 0 && (
+            {(!Array.isArray(tasks) || tasks.length === 0) && (
               <tr>
                 <td colSpan={6} className="px-6 py-4 text-center text-sm text-slate-500">
                   No tasks found

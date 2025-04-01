@@ -24,7 +24,14 @@ interface NewTaskModalProps {
 
 const newTaskSchema = insertTaskSchema.extend({
   title: z.string().min(1, 'Title is required'),
+  description: z.string().min(1, 'Description is required'),
+  status: z.string().min(1, 'Status is required'),
+  priority: z.string().min(1, 'Priority is required'),
+  assigneeId: z.number().optional(),
   workspaceId: z.number(),
+  position: z.number(),
+  completed: z.boolean().optional().default(false),
+  // For startDate and dueDate, we'll handle conversion in the form submission
 });
 
 type NewTaskFormValues = z.infer<typeof newTaskSchema>;
@@ -68,9 +75,9 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
         priority: editTask.priority,
         assigneeId: editTask.assigneeId || undefined,
         workspaceId: editTask.workspaceId,
-        dueDate: editTask.dueDate,
-        startDate: editTask.startDate,
-        completed: editTask.completed,
+        dueDate: editTask.dueDate || undefined,
+        startDate: editTask.startDate || undefined,
+        completed: editTask.completed === null ? false : editTask.completed,
         position: editTask.position || 0
       });
     } else if (defaultStatus) {
@@ -137,10 +144,32 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
 
   // Form submission
   const onSubmit = (data: NewTaskFormValues) => {
+    // Make sure the fields are properly validated
+    if (!data.title || !data.description || !data.status || !data.priority) {
+      form.setError('title', { 
+        type: 'manual',
+        message: 'All fields marked with * are required'
+      });
+      return;
+    }
+
+    // Create a copy of the data to fix date format issues
+    const processedData = {
+      ...data,
+      // Ensure dates are properly formatted if present, otherwise set to today
+      startDate: data.startDate ? data.startDate : new Date(),
+      dueDate: data.dueDate ? data.dueDate : undefined,
+      // Always include these required fields
+      completed: data.completed !== undefined ? data.completed : false,
+      position: data.position !== undefined ? data.position : 0,
+    };
+
+    console.log("Submitting task data:", processedData);
+    
     if (isEditing && editTask) {
-      updateTaskMutation.mutate({ id: editTask.id, data });
+      updateTaskMutation.mutate({ id: editTask.id, data: processedData });
     } else {
-      createTaskMutation.mutate(data);
+      createTaskMutation.mutate(processedData);
     }
   };
 
@@ -152,6 +181,9 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
           <p className="text-sm text-muted-foreground pt-2">
             {isEditing ? 'Update the details of your task below.' : 'Fill in the details to create a new task.'}
           </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Fields marked with <span className="text-red-500">*</span> are required.
+          </p>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
@@ -160,9 +192,9 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Title</FormLabel>
+                  <FormLabel>Title <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
-                    <Input placeholder="Task title" {...field} />
+                    <Input placeholder="Task title" {...field} required />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -174,12 +206,13 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>Description <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <Textarea 
                       placeholder="Describe the task..." 
                       {...field}
                       value={field.value || ''}
+                      required
                     />
                   </FormControl>
                   <FormMessage />
@@ -193,11 +226,12 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status</FormLabel>
+                    <FormLabel>Status <span className="text-red-500">*</span></FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
                       defaultValue={field.value}
                       value={field.value}
+                      required
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -221,11 +255,12 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
                 name="priority"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Priority</FormLabel>
+                    <FormLabel>Priority <span className="text-red-500">*</span></FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
                       defaultValue={field.value}
                       value={field.value}
+                      required
                     >
                       <FormControl>
                         <SelectTrigger>

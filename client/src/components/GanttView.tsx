@@ -11,7 +11,7 @@ interface GanttViewProps {
 const GanttView: FC<GanttViewProps> = ({ tasks, users, onTaskClick }) => {
   // Calculate date range for the Gantt chart
   const dateRange = useMemo(() => {
-    if (tasks.length === 0) {
+    if (!Array.isArray(tasks) || tasks.length === 0) {
       const today = new Date();
       return {
         start: today,
@@ -111,7 +111,7 @@ const GanttView: FC<GanttViewProps> = ({ tasks, users, onTaskClick }) => {
         <div className="border-t border-slate-200"></div>
         
         {/* Gantt Rows */}
-        {tasks.map(task => {
+        {Array.isArray(tasks) && tasks.map(task => {
           const position = calculateTaskPosition(task);
           const taskColor = getTaskColor(task.priority);
           
@@ -133,7 +133,7 @@ const GanttView: FC<GanttViewProps> = ({ tasks, users, onTaskClick }) => {
                   style={{ left: position.left, width: position.width }}
                 >
                   <div className="h-full flex items-center justify-center text-xs text-white font-medium">
-                    {position.width.replace('%', '') > 10 ? task.title : ''}
+                    {parseFloat(position.width) > 10 ? task.title : ''}
                   </div>
                 </div>
               </div>
@@ -141,7 +141,7 @@ const GanttView: FC<GanttViewProps> = ({ tasks, users, onTaskClick }) => {
           );
         })}
 
-        {tasks.length === 0 && (
+        {(!Array.isArray(tasks) || tasks.length === 0) && (
           <div className="py-4 text-center text-sm text-slate-500">
             No tasks found
           </div>
