@@ -90,9 +90,19 @@ export function EpicModal({ isOpen, onClose, users, workspaceId, editEpic }: Epi
         ...data,
         taskType: TaskType.EPIC,
       };
-      return apiRequest("/api/tasks", "POST", epicData);
+      console.log("Submitting epic data:", epicData);
+      try {
+        // Fixed order: url, method, data
+        const response = await apiRequest("/api/tasks", "POST", epicData);
+        console.log("Epic creation response:", response);
+        return response;
+      } catch (error) {
+        console.error("Error in API request:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Epic created successfully:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/workspaces", workspaceId, "tasks"] });
       toast({
         title: "Epic created",
@@ -114,7 +124,10 @@ export function EpicModal({ isOpen, onClose, users, workspaceId, editEpic }: Epi
   // Create mutation for updating an epic
   const updateEpicMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number, data: EpicFormValues }) => {
-      return apiRequest(`/api/tasks/${id}`, "PATCH", data);
+      console.log("Updating epic with data:", data);
+      const response = await apiRequest(`/api/tasks/${id}`, "PATCH", data);
+      console.log("Epic update response:", response);
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/workspaces", workspaceId, "tasks"] });
@@ -146,7 +159,8 @@ export function EpicModal({ isOpen, onClose, users, workspaceId, editEpic }: Epi
   // Generate documentation for completed epics
   const generateDocumentationMutation = useMutation({
     mutationFn: async (epicId: number) => {
-      return apiRequest(`/api/epics/${epicId}/generate-documentation`, "POST");
+      console.log("Generating documentation for epic ID:", epicId);
+      return apiRequest(`/api/epics/${epicId}/generate-documentation`, "POST", null);
     },
     onSuccess: (data) => {
       toast({

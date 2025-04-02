@@ -8,10 +8,12 @@ async function throwIfResNotOk(res: Response) {
 }
 
 export async function apiRequest(
-  method: string,
   url: string,
+  method: string,
   data?: unknown | undefined,
 ): Promise<any> {
+  console.log(`API Request: ${method} ${url}`, data);
+  
   const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
@@ -25,8 +27,11 @@ export async function apiRequest(
   try {
     const contentType = res.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
-      return await res.json();
+      const responseData = await res.json();
+      console.log(`API Response: ${method} ${url}`, responseData);
+      return responseData;
     } else {
+      console.log(`API Response (non-JSON): ${method} ${url}`);
       return res;
     }
   } catch (error) {
