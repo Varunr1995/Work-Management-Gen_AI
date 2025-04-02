@@ -2,7 +2,7 @@ import { FC, useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { Task, User, TaskStatus } from '@shared/schema';
+import { Task, User, TaskStatus, TaskType } from '@shared/schema';
 
 import Sidebar from '@/components/Sidebar';
 import TopNavigation from '@/components/TopNavigation';
@@ -12,6 +12,7 @@ import KanbanView from '@/components/KanbanView';
 import GanttView from '@/components/GanttView';
 import TaskDetailModal from '@/components/TaskDetailModal';
 import NewTaskModal from '@/components/NewTaskModal';
+import { EpicModal } from '@/components/EpicModal';
 import { EmailIntegration } from '@/components/EmailIntegration';
 import { SlackIntegration } from '@/components/SlackIntegration';
 
@@ -24,9 +25,13 @@ const Dashboard: FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
+  const [isEpicModalOpen, setIsEpicModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editingEpic, setEditingEpic] = useState<Task | null>(null);
   const [newTaskStatus, setNewTaskStatus] = useState<string | undefined>();
   const [filterByUserId, setFilterByUserId] = useState<number | null>(null);
+  const [filterByTaskType, setFilterByTaskType] = useState<string | null>(null);
+  const [filterByEpicId, setFilterByEpicId] = useState<number | null>(null); 
   const [sortOption, setSortOption] = useState<SortOption>(null);
   const [filterOption, setFilterOption] = useState<FilterOption>(null);
 
@@ -187,8 +192,14 @@ const Dashboard: FC = () => {
   };
 
   const handleTaskEdit = (task: Task) => {
-    setEditingTask(task);
-    setIsNewTaskOpen(true);
+    // Check if this is an epic
+    if (task.taskType === TaskType.EPIC) {
+      setEditingEpic(task);
+      setIsEpicModalOpen(true);
+    } else {
+      setEditingTask(task);
+      setIsNewTaskOpen(true);
+    }
     setIsTaskDetailOpen(false);
   };
 
@@ -212,6 +223,37 @@ const Dashboard: FC = () => {
     setEditingTask(null);
     setIsNewTaskOpen(true);
   };
+  
+  // Epic handlers
+  const handleNewEpic = () => {
+    setEditingEpic(null);
+    setIsEpicModalOpen(true);
+  };
+  
+  const handleEpicClick = (epic: Task) => {
+    // Toggle filtering by this epic
+    if (filterByEpicId === epic.id) {
+      // Clear filter if it's already set
+      setFilterByEpicId(null);
+      toast({
+        title: "Filter cleared",
+        description: "Showing all tasks"
+      });
+    } else {
+      // Set filter to this epic
+      setFilterByEpicId(epic.id);
+      toast({
+        title: "Epic filter applied",
+        description: `Showing tasks in epic: ${epic.title}`
+      });
+    }
+  };
+  
+  const handleFilterByTaskType = (taskType: string | null) => {
+    setFilterByTaskType(taskType);
+    setFilterByEpicId(null); // Clear epic filter when changing task type
+    console.log('Filtering tasks by type:', taskType);
+  };
 
   // Filter and sort tasks based on current options
   const filteredTasks = useMemo(() => {
@@ -223,6 +265,16 @@ const Dashboard: FC = () => {
     
     // Start with all tasks
     let result = [...tasks];
+
+    // Filter by task type if needed
+    if (filterByTaskType !== null) {
+      result = result.filter(task => task.taskType === filterByTaskType);
+    }
+    
+    // Filter by epic ID if needed
+    if (filterByEpicId !== null) {
+      result = result.filter(task => task.epicId === filterByEpicId);
+    }
     
     // Filter by user ID if needed
     if (filterByUserId !== null) {
@@ -283,7 +335,7 @@ const Dashboard: FC = () => {
     }
     
     return result;
-  }, [tasks, filterByUserId, filterOption, sortOption]);
+  }, [tasks, filterByUserId, filterByTaskType, filterByEpicId, filterOption, sortOption]);
   
   // Handlers for filtering and sorting
   const handleFilterByUser = (userId: number | null) => {
@@ -316,7 +368,8 @@ const Dashboard: FC = () => {
           <div className="flex flex-col md:flex-row gap-4 mb-4">
             <div className="flex-1">
               <Toolbar 
-                onNewTask={handleNewTask} 
+                onNewTask={handleNewTask}
+                onNewEpic={handleNewEpic}
                 teamMembers={users}
                 onFilterByUser={handleFilterByUser}
                 onSort={handleSort}
@@ -383,6 +436,15 @@ const Dashboard: FC = () => {
         workspaceId={workspaceId}
         editTask={editingTask}
         defaultStatus={newTaskStatus}
+      />
+      
+      {/* Epic Modal */}
+      <EpicModal
+        isOpen={isEpicModalOpen}
+        onClose={() => setIsEpicModalOpen(false)}
+        users={users}
+        workspaceId={workspaceId}
+        editEpic={editingEpic}
       />
     </div>
   );

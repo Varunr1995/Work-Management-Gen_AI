@@ -1,5 +1,5 @@
 import { FC, useState } from 'react';
-import { Plus, Filter, SortAsc, X, Check, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Filter, SortAsc, X, Check, ArrowUpDown, ArrowUp, ArrowDown, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -19,6 +19,7 @@ export type FilterOption = 'all' | 'completed' | 'active' | null;
 
 interface ToolbarProps {
   onNewTask: () => void;
+  onNewEpic?: () => void;
   teamMembers: User[];
   onFilterByUser?: (userId: number | null) => void;
   onSort?: (sortOption: SortOption) => void;
@@ -27,6 +28,7 @@ interface ToolbarProps {
 
 const Toolbar: FC<ToolbarProps> = ({ 
   onNewTask, 
+  onNewEpic,
   teamMembers, 
   onFilterByUser,
   onSort,
@@ -96,6 +98,17 @@ const Toolbar: FC<ToolbarProps> = ({
           <Plus className="h-5 w-5 mr-1" />
           New Task
         </Button>
+        
+        {onNewEpic && (
+          <Button 
+            onClick={onNewEpic}
+            variant="secondary"
+            className="inline-flex items-center justify-center"
+          >
+            <Layers className="h-5 w-5 mr-1" />
+            New Epic
+          </Button>
+        )}
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

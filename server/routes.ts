@@ -6,7 +6,10 @@ import {
   insertTaskSchema, 
   insertSubtaskSchema, 
   insertCommentSchema,
-  TaskSource 
+  TaskSource,
+  TaskType,
+  TaskStatus,
+  Task
 } from "@shared/schema";
 import { emailService } from "./services/emailService";
 import { schedulerService } from "./services/schedulerService";
@@ -437,6 +440,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Epic Documentation Generation
+  apiRouter.post("/epics/:epicId/generate-documentation", async (req: Request, res: Response) => {
+    try {
+      const epicId = parseInt(req.params.epicId);
+      
+      // Get the epic task
+      const epic = await storage.getTask(epicId);
+      if (!epic) {
+        return res.status(404).json({ message: "Epic not found" });
+      }
+      
+      // Verify this is actually an epic
+      if (epic.taskType !== TaskType.EPIC) {
+        return res.status(400).json({ message: "Task is not an epic" });
+      }
+      
+      // Get all tasks linked to this epic
+      const linkedTasks = await storage.getTasksByEpicId(epicId);
+      
+      // Generate documentation from epic and linked tasks
+      const documentContent = `
+# Epic: ${epic.title}
+
+## Overview
+${epic.description}
+
+## Timeline
+* Start Date: ${epic.startDate ? new Date(epic.startDate).toLocaleDateString() : 'Not specified'}
+* End Date: ${epic.dueDate ? new Date(epic.dueDate).toLocaleDateString() : 'Not specified'}
+
+## Tasks
+${linkedTasks.map((task: Task) => 
+  `### ${task.title} (${task.status})
+  * Priority: ${task.priority}
+  * ${task.description || 'No description'}`
+).join('\n\n')}
+
+## Summary
+This epic contains ${linkedTasks.length} tasks, of which ${linkedTasks.filter((t: Task) => t.status === TaskStatus.COMPLETED).length} are completed.
+      `;
+      
+      console.log("Generated documentation for epic", epicId, documentContent);
+      
+      // Create a notification for the documentation
+      const notification = {
+        title: "Epic Documentation Generated",
+        message: `Documentation for epic "${epic.title}" has been generated.`,
+        taskId: epicId,
+        userId: 1, // Admin user (can be changed in a real app)
+        type: "epic_documentation",
+        isRead: false,
+        createdAt: new Date()
+      };
+      
+      const createdNotification = await storage.createNotification(notification);
+      
+      res.json({
+        success: true,
+        epicId,
+        documentation: documentContent,
+        notification: createdNotification
+      });
+      
+    } catch (error) {
+      console.error('Error generating epic documentation:', error);
+      res.status(500).json({ 
+        message: "Failed to generate epic documentation",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   // Slack integration API
   apiRouter.post("/slack/configure", async (req: Request, res: Response) => {
     try {

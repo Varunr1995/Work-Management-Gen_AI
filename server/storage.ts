@@ -26,6 +26,7 @@ export interface IStorage {
   getTasks(workspaceId: number): Promise<Task[]>;
   getTasksByStatus(workspaceId: number, status: string): Promise<Task[]>;
   getTasksByType(workspaceId: number, taskType: string): Promise<Task[]>;
+  getTasksByEpicId(epicId: number): Promise<Task[]>;
   getRelatedTasks(parentTaskId: number): Promise<Task[]>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: number, task: Partial<InsertTask>): Promise<Task | undefined>;
@@ -412,6 +413,12 @@ export class MemStorage implements IStorage {
   async getRelatedTasks(parentTaskId: number): Promise<Task[]> {
     return Array.from(this.tasks.values())
       .filter(task => task.parentTaskId === parentTaskId);
+  }
+  
+  // Get tasks that belong to a specific epic
+  async getTasksByEpicId(epicId: number): Promise<Task[]> {
+    return Array.from(this.tasks.values())
+      .filter(task => task.epicId === epicId);
   }
 
   // Notification operations
