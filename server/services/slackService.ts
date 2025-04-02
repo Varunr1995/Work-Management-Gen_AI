@@ -65,7 +65,7 @@ export class SlackService {
    * Configure the Slack service with user-provided settings
    * @returns Promise that resolves to true if connection test was successful
    */
-  async configure(config: SlackConfig): Promise<boolean> {
+  async configure(config: SlackConfig): Promise<{success: boolean; error?: string}> {
     this.config = config;
     
     try {
@@ -86,16 +86,22 @@ export class SlackService {
           is_private: result?.channel?.is_private
         }));
         await this.loadExistingTasks();
-        return true;
+        return { success: true };
       } else {
         console.error('Slack API returned ok=false:', result);
         this.isConfigured = false;
-        return false;
+        return { 
+          success: false, 
+          error: result.error || 'Invalid response from Slack API'
+        };
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error configuring Slack service:', error);
       this.isConfigured = false;
-      return false;
+      return { 
+        success: false, 
+        error: error.message || 'Failed to connect to Slack API'
+      };
     }
   }
 

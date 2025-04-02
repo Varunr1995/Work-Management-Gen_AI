@@ -111,14 +111,19 @@ export const SlackIntegration: React.FC<SlackIntegrationProps> = () => {
       } else {
         toast({
           title: "Configuration failed",
-          description: response.message || "Could not save Slack configuration",
+          description: response.error || response.message || "Invalid Slack credentials. Please check your Bot Token and Channel ID.",
           variant: "destructive",
         });
       }
     } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 
+                         error.response?.data?.message ||
+                         error.message ||
+                         "Could not connect to Slack. Please verify your credentials and try again.";
+      
       toast({
         title: "Configuration failed",
-        description: error.message || "Could not save Slack configuration",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
