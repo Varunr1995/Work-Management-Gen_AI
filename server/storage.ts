@@ -382,7 +382,7 @@ export class MemStorage implements IStorage {
   async getComments(taskId: number): Promise<Comment[]> {
     return Array.from(this.comments.values())
       .filter(comment => comment.taskId === taskId)
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); // Newest comments first
   }
 
   async createComment(insertComment: InsertComment): Promise<Comment> {

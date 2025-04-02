@@ -702,6 +702,77 @@ This epic contains ${linkedTasks.length} tasks, of which ${linkedTasks.filter((t
     }
   });
 
+  // Sample epics endpoint for testing
+  apiRouter.post("/sample-epics", async (req: Request, res: Response) => {
+    try {
+      const workspaceId = parseInt(req.body.workspaceId || "1");
+      
+      // Create 4 sample epics
+      const epicData = [
+        {
+          title: "Product Launch Campaign",
+          description: "Full marketing campaign for the new product launch including social media, email, and PR activities.",
+          status: TaskStatus.IN_PROGRESS,
+          priority: "high",
+          assigneeId: 1,
+          workspaceId: workspaceId,
+          dueDate: new Date("2023-11-15"),
+          startDate: new Date("2023-09-01"),
+          taskType: TaskType.EPIC
+        },
+        {
+          title: "Website Revamp Project",
+          description: "Complete redesign and development of the company website with new branding and improved UX.",
+          status: TaskStatus.TODO,
+          priority: "high",
+          assigneeId: 2,
+          workspaceId: workspaceId,
+          dueDate: new Date("2023-12-20"),
+          startDate: new Date("2023-10-01"),
+          taskType: TaskType.EPIC
+        },
+        {
+          title: "Q4 Client Onboarding Improvements",
+          description: "Project to streamline and enhance the client onboarding process for Q4.",
+          status: TaskStatus.IN_REVIEW,
+          priority: "medium",
+          assigneeId: 3,
+          workspaceId: workspaceId,
+          dueDate: new Date("2023-11-30"),
+          startDate: new Date("2023-09-15"),
+          taskType: TaskType.EPIC
+        },
+        {
+          title: "Mobile App Enhancement",
+          description: "Series of updates and new features for the mobile application.",
+          status: TaskStatus.TODO,
+          priority: "low",
+          assigneeId: 1,
+          workspaceId: workspaceId,
+          dueDate: new Date("2024-01-15"),
+          startDate: new Date("2023-11-01"),
+          taskType: TaskType.EPIC
+        }
+      ];
+      
+      const createdEpics = [];
+      
+      for (const epic of epicData) {
+        const createdEpic = await storage.createTask(epic);
+        createdEpics.push(createdEpic);
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "Sample epics created successfully", 
+        epics: createdEpics 
+      });
+    } catch (error) {
+      console.error("Error creating sample epics:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Register API routes with prefix
   app.use('/api', apiRouter);
 
