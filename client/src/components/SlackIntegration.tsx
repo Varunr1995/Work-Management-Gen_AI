@@ -313,11 +313,12 @@ export const SlackIntegration: React.FC<SlackIntegrationProps> = () => {
             </div>
           )}
         </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+        <CardFooter className="flex flex-wrap gap-2">
           <Button
             onClick={() => setConfigOpen(true)}
             variant="outline"
-            className="w-full sm:w-auto"
+            className="flex-shrink-0"
+            size="sm"
           >
             {configStatus.isConfigured ? "Update Configuration" : "Configure Slack"}
           </Button>
@@ -327,8 +328,9 @@ export const SlackIntegration: React.FC<SlackIntegrationProps> = () => {
               <Button
                 onClick={checkSlackMessages}
                 disabled={isChecking}
-                className="w-full sm:w-auto"
                 variant="secondary"
+                className="flex-shrink-0"
+                size="sm"
               >
                 {isChecking ? (
                   <>
@@ -345,7 +347,8 @@ export const SlackIntegration: React.FC<SlackIntegrationProps> = () => {
               
               <Button
                 onClick={() => setSendOpen(true)}
-                className="w-full sm:w-auto"
+                className="flex-shrink-0"
+                size="sm"
               >
                 <Send className="mr-2 h-4 w-4" />
                 Send Message

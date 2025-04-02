@@ -42,10 +42,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.get("/workspaces/:workspaceId/tasks", async (req: Request, res: Response) => {
     const workspaceId = parseInt(req.params.workspaceId);
     const status = req.query.status as string | undefined;
+    const taskType = req.query.taskType as string | undefined;
     
     let tasks;
     if (status) {
       tasks = await storage.getTasksByStatus(workspaceId, status);
+    } else if (taskType) {
+      tasks = await storage.getTasksByType(workspaceId, taskType);
     } else {
       tasks = await storage.getTasks(workspaceId);
     }

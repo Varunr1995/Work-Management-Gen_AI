@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -63,6 +64,7 @@ export type TaskPriorityType = typeof TaskPriority[keyof typeof TaskPriority];
 export const TaskType = {
   SPRINT: "sprint",
   ADHOC: "adhoc",
+  EPIC: "epic",
 } as const;
 
 export type TaskTypeValue = typeof TaskType[keyof typeof TaskType];
@@ -76,7 +78,7 @@ export const TaskSource = {
 
 export type TaskSourceValue = typeof TaskSource[keyof typeof TaskSource];
 
-// Tasks table
+// Tasks table - define schema first, add relations after to avoid circular references
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -89,8 +91,9 @@ export const tasks = pgTable("tasks", {
   startDate: timestamp("start_date"),
   completed: boolean("completed").default(false),
   position: integer("position").default(0),
-  taskType: text("task_type").default(TaskType.ADHOC), // 'sprint' or 'adhoc'
-  parentTaskId: integer("parent_task_id").references(() => tasks.id), // For handling RE: emails
+  taskType: text("task_type").default(TaskType.ADHOC), // 'sprint', 'adhoc', or 'epic'
+  parentTaskId: integer("parent_task_id"), // For handling RE: emails
+  epicId: integer("epic_id"), // For linking tasks to epics
   emailThreadId: text("email_thread_id"), // For identifying email threads
   source: text("source").default(TaskSource.MANUAL), // 'email', 'slack', or 'manual'
   slackMessageId: text("slack_message_id"), // For identifying slack messages
@@ -109,6 +112,7 @@ export const insertTaskSchema = createInsertSchema(tasks).pick({
   position: true,
   taskType: true,
   parentTaskId: true,
+  epicId: true,
   emailThreadId: true,
   source: true,
   slackMessageId: true,

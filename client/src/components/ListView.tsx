@@ -76,6 +76,8 @@ const getTaskTypeLabel = (taskType: string) => {
       return 'Ad-hoc';
     case 'sprint':
       return 'Sprint';
+    case 'epic':
+      return 'Epic';
     default:
       return taskType || 'Ad-hoc';
   }
@@ -87,6 +89,8 @@ const getTaskTypeBadgeVariant = (taskType: string) => {
       return 'bg-orange-100 text-orange-800';
     case 'sprint':
       return 'bg-indigo-100 text-indigo-800';
+    case 'epic':
+      return 'bg-purple-200 text-purple-900 font-bold';
     default:
       return 'bg-gray-100 text-gray-800';
   }

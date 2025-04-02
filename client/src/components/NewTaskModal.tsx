@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Task, User, TaskStatus, TaskPriority, TaskType, insertTaskSchema } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 
 interface NewTaskModalProps {
   isOpen: boolean;
@@ -32,7 +32,9 @@ const newTaskSchema = insertTaskSchema.extend({
   workspaceId: z.number(),
   position: z.number(),
   completed: z.boolean().optional().default(false),
-  // For startDate and dueDate, we'll handle conversion in the form submission
+  epicId: z.number().optional(),
+  startDate: z.date().optional(),
+  dueDate: z.date().optional(),
 });
 
 type NewTaskFormValues = z.infer<typeof newTaskSchema>;
@@ -48,6 +50,19 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEditing = !!editTask;
+  
+  // Query to fetch epic tasks from the current workspace
+  const { data: epicTasks = [] } = useQuery({
+    queryKey: ['/api/workspaces', workspaceId, 'tasks', 'epics'],
+    queryFn: async () => {
+      const response = await fetch(`/api/workspaces/${workspaceId}/tasks?taskType=epic`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch epic tasks');
+      }
+      return response.json();
+    },
+    select: (data: Task[]) => data.filter(task => task.taskType === TaskType.EPIC)
+  });
 
   // Set up form
   const form = useForm<NewTaskFormValues>({
@@ -63,7 +78,8 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
       dueDate: undefined,
       startDate: undefined,
       completed: false,
-      position: 0
+      position: 0,
+      epicId: undefined
     }
   });
 
@@ -81,7 +97,8 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
         dueDate: editTask.dueDate || undefined,
         startDate: editTask.startDate || undefined,
         completed: editTask.completed === null ? false : editTask.completed,
-        position: editTask.position || 0
+        position: editTask.position || 0,
+        epicId: editTask.epicId || undefined
       });
     } else if (defaultStatus) {
       form.reset({
@@ -95,7 +112,8 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
         dueDate: undefined,
         startDate: undefined,
         completed: false,
-        position: 0
+        position: 0,
+        epicId: undefined
       });
     } else {
       form.reset();
@@ -347,16 +365,53 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
                       <SelectContent>
                         <SelectItem value={TaskType.ADHOC}>Ad-hoc</SelectItem>
                         <SelectItem value={TaskType.SPRINT}>Sprint</SelectItem>
+                        <SelectItem value={TaskType.EPIC}>Epic</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Ad-hoc tasks are for daily work, Sprint tasks are for planned work
+                      Ad-hoc for daily work, Sprint for planned work, Epic for a collection of related tasks
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+
+            {/* Epic selection field - only show when task type is not Epic */}
+            {form.watch('taskType') !== TaskType.EPIC && (
+              <FormField
+                control={form.control}
+                name="epicId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link to Epic</FormLabel>
+                    <Select 
+                      onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))}
+                      defaultValue={field.value?.toString() || "none"}
+                      value={field.value?.toString() || "none"}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an epic" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {epicTasks.map(epic => (
+                          <SelectItem key={epic.id} value={epic.id.toString()}>
+                            {epic.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Link this task to an epic to organize related work
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -368,9 +423,11 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
                     <FormControl>
                       <Input 
                         type="date" 
-                        {...field} 
-                        value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
-                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                        value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          field.onChange(value ? new Date(value) : undefined);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -387,9 +444,11 @@ const NewTaskModal: FC<NewTaskModalProps> = ({
                     <FormControl>
                       <Input 
                         type="date" 
-                        {...field} 
-                        value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
-                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                        value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          field.onChange(value ? new Date(value) : undefined);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
