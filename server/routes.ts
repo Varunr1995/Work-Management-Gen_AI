@@ -83,14 +83,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dueDate: req.body.dueDate ? new Date(req.body.dueDate) : undefined,
       };
       
-      console.log("Task data fields:", Object.keys(taskData));
-      console.log("Task data type:", taskData.taskType);
-      
-      // Validate task data
       const validatedData = insertTaskSchema.parse(taskData);
       console.log("Validated task data:", JSON.stringify(validatedData));
-      
-      // Create the task
       const task = await storage.createTask(validatedData);
       console.log("Created task:", JSON.stringify(task));
       
