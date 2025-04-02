@@ -294,8 +294,8 @@ export function EpicModal({ isOpen, onClose, users, workspaceId, editEpic }: Epi
                   <FormItem>
                     <FormLabel>Assignee</FormLabel>
                     <Select
-                      onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}
-                      defaultValue={field.value?.toString() || ""}
+                      onValueChange={(value) => field.onChange(value === "0" ? null : parseInt(value))}
+                      defaultValue={field.value?.toString() || "0"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -303,7 +303,7 @@ export function EpicModal({ isOpen, onClose, users, workspaceId, editEpic }: Epi
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="0">Unassigned</SelectItem>
                         {users.map((user) => (
                           <SelectItem key={user.id} value={user.id.toString()}>
                             {user.displayName}

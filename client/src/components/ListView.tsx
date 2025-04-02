@@ -150,8 +150,11 @@ const ListView: FC<ListViewProps> = ({
                         }}
                       />
                       <div className="ml-3">
-                        <div className={`text-sm font-medium text-slate-900 ${task.completed ? 'line-through' : ''}`}>
+                        <div className={`text-sm ${task.taskType === 'epic' ? 'font-bold text-purple-900' : 'font-medium text-slate-900'} ${task.completed ? 'line-through' : ''}`}>
                           {task.title}
+                          {task.taskType === 'epic' && (
+                            <Badge className="ml-2 bg-purple-200 text-purple-900">Epic</Badge>
+                          )}
                         </div>
                         <div className={`text-sm text-slate-500 ${task.completed ? 'line-through' : ''}`}>
                           {task.description && task.description.length > 50 
